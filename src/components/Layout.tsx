@@ -58,12 +58,15 @@ const Layout: React.FC<LayoutProps> = ({ profile }) => {
   return (
     <div className="flex h-screen bg-bg-slate overflow-hidden">
       {/* Sidebar */}
-      <aside className={`hidden md:flex flex-col w-72 bg-surface border-r border-slate-200 transition-colors`}>
-        <div className="p-6 flex items-center gap-3">
-          <div className={`bg-${roleTheme.primary}/10 p-2 rounded-xl`}>
-            <GraduationCap className={`h-6 w-6 text-${roleTheme.primary}`} />
+      <aside className="hidden md:flex flex-col w-72 bg-surface border-r border-slate-200 transition-colors">
+        <div className="p-6 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className={`bg-${roleTheme.primary}/10 p-2 rounded-xl`}>
+              <GraduationCap className={`h-6 w-6 text-${roleTheme.primary}`} />
+            </div>
+            <span className="font-black text-slate-900 text-xl tracking-tight uppercase">Schooling</span>
           </div>
-          <span className="font-black text-slate-900 text-xl tracking-tight uppercase">Schooling</span>
+          <span className="text-[10px] font-black text-slate-400 bg-slate-100 px-2 py-1 rounded-md uppercase tracking-widest">v2.1</span>
         </div>
 
         <nav className="flex-1 px-4 space-y-1 mt-4">

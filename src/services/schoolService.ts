@@ -1,4 +1,5 @@
-import { supabase } from '../lib/supabase';
+import { supabase as libSupabase } from '../lib/supabase';
+const supabase = libSupabase as any;
 import type { TablesInsert } from '../types/database';
 
 /**
@@ -208,15 +209,15 @@ export class SchoolService {
    * @param {Database['public']['Tables']['notifications']['Row']['target_role']} targetRole - The target role (all|teacher|parent).
    */
   static async sendOTA(message: string, targetRole: 'all' | 'teacher' | 'parent') {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
+    const customUserId = localStorage.getItem('custom_user_id');
+    if (!customUserId) throw new Error('Not authenticated');
 
     const { data, error } = await supabase
       .from('notifications')
       .insert({
         message,
         target_role: targetRole,
-        sender_id: user.id
+        sender_id: customUserId
       })
       .select()
       .single();
@@ -235,69 +236,124 @@ export class SchoolService {
    * @param {string} password - The user's password.
    */
   static async signIn(username: string, password: string) {
-    // Smart mapping: Use raw input if it's an email, otherwise map to internal domain
-    const email = username.includes('@') 
-      ? username 
-      : `${username.toLowerCase()}@schooling.app`;
+    // Custom absolute manual Auth - Enforce Lowercase!
+    let searchUsername = username.includes('@') ? username.split('@')[0] : username;
+    searchUsername = searchUsername.toLowerCase().trim();
       
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .ilike('username', searchUsername)
+      .eq('password', password)
+      .maybeSingle();
+      
     if (error) throw error;
-    return data;
+    if (!profile) throw new Error('Invalid credentials. Check your username and password.');
+
+    localStorage.setItem('custom_user_id', profile.id);
+    return profile;
   }
 
-  /**
-   * Signs the current user out.
-   */
   static async signOut() {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+    localStorage.removeItem('custom_user_id');
+    // Also try clearing supabase just in case there's a leftover session
+    await supabase.auth.signOut().catch(() => {});
   }
 
-  /**
-   * Creates a new user account with custom credentials.
-   * Maps username to a fake email (e.g., username@school.system).
-   * @param {string} username - The custom school-id username.
-   * @param {string} password - The user's password.
-   * @param {Database['public']['Tables']['profiles']['Row']['role']} role - The user's role.
-   * @returns {Promise<Tables<'profiles'>>} The created profile.
-   */
   static async generateAccount(username: string, password: string, role: 'admin' | 'teacher' | 'parent') {
-    const email = username.includes('@')
-      ? username
-      : `${username.toLowerCase()}@schooling.app`;
+    // Ripping out Supabase auth. Just pushing straight to DB.
+    // Enforce lowercase system-wide
+    let rawUsername = username.includes('@') ? username.split('@')[0] : username;
+    rawUsername = rawUsername.toLowerCase().trim();
     
-    // 1. Sign up the user in Supabase Auth
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          role,
-          username: username.split('@')[0].toUpperCase()
-        }
-      }
-    });
-
-    if (authError) throw authError;
-    if (!authData.user) throw new Error('User creation failed');
-
-    // 2. Create the profile record
     const { data: profileData, error: profileError } = await supabase
       .from('profiles')
       .insert({
-        id: authData.user.id,
-        username,
-        role,
+        username: rawUsername,
+        password: password,
+        role: role,
         is_active: true
       })
       .select()
       .single();
 
-    if (profileError) throw profileError;
+    if (profileError) {
+      if (profileError.message.includes('duplicate key value')) {
+        throw new Error('This account (Roll No / ID) is already registered.');
+      }
+      throw profileError;
+    }
+    
     return profileData;
+  }
+
+  /**
+   * Special method to ensure a student has their own unique login and parent record.
+   * This enforces the 1:1 isolation requested by the user.
+   */
+  static async createStudentAccess(studentId: string, rollNo: string, password: string) {
+    // 1. Get student data
+    const { data: student } = await supabase.from('students').select('parent_id, name').eq('id', studentId).single();
+    if (!student) throw new Error('Student not found');
+    
+    // 2. Create Profile & Auth User using Roll Number as username
+    const profile = await this.generateAccount(rollNo, password, 'parent');
+
+    // 3. Create or Update Parent record for this login
+    let parentId = student.parent_id;
+    if (!parentId) {
+      const { data: newParent, error: pErr } = await supabase.from('parents').insert({
+        profile_id: profile.id,
+        full_name: `${student.name}'s Guardian`
+      }).select().single();
+      if (pErr) throw pErr;
+      parentId = newParent.id;
+    } else {
+      // Update existing parent record to point to new profile if necessary
+      await supabase.from('parents').update({ profile_id: profile.id }).eq('id', parentId);
+    }
+
+    // 4. Link Student to this parent
+    const { error: sErr } = await supabase.from('students').update({ parent_id: parentId }).eq('id', studentId);
+    if (sErr) throw sErr;
+
+    return { profile, parent_id: parentId };
+  }
+
+  /**
+   * Special method to ensure a teacher has their own unique login.
+   */
+  static async createTeacherAccess(teacherId: string, username: string, password: string) {
+    // 1. Create Profile & Auth User using username
+    const profile = await this.generateAccount(username, password, 'teacher');
+
+    // 2. Update Teacher record to link to this profile
+    const { error: tErr } = await supabase.from('teachers').update({ profile_id: profile.id }).eq('id', teacherId);
+    if (tErr) throw tErr;
+
+    return profile;
+  }
+
+  /**
+   * Identifies all students and teachers who are missing a digital login.
+   * This is used for the "System Audit" repair tool.
+   */
+  static async getAuthAudit() {
+    const { data: students } = await supabase
+      .from('students')
+      .select('id, name, roll_no, parent_id, parents(profile_id)');
+    const { data: teachers } = await supabase
+      .from('teachers')
+      .select('id, full_name, profile_id');
+
+    const missingStudents = (students || []).filter((s: any) => !s.parents?.profile_id);
+    const missingTeachers = (teachers || []).filter((t: any) => !t.profile_id);
+
+    return {
+      students: missingStudents,
+      teachers: missingTeachers,
+      totalMissing: missingStudents.length + missingTeachers.length
+    };
   }
 
   /**
@@ -443,7 +499,7 @@ export class SchoolService {
   }
 
   static async createSubject(name: string, grade: string) {
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('subjects')
       .insert({ name, grade_level: grade })
       .select()
@@ -606,10 +662,11 @@ export class SchoolService {
 
     if (!profile) throw new Error('User profile not found');
 
-    const { error } = await supabase.auth.admin.updateUserById(
-      profile.id,
-      { password: newPassword }
-    );
+    const { error } = await (supabase as any)
+      .from('profiles')
+      .update({ password: newPassword })
+      .eq('id', profile.id);
+
     if (error) throw error;
   }
 
@@ -678,7 +735,7 @@ export class SchoolService {
    * Updates specific teacher fields (name, salary, joined_at).
    */
   static async updateTeacher(teacherId: string, updates: Record<string, any>) {
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('teachers')
       .update(updates)
       .eq('id', teacherId)

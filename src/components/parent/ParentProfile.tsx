@@ -1,5 +1,5 @@
 import React from 'react';
-import { User, ShieldCheck, Mail, Phone, MapPin, Award, IdentificationIcon } from 'lucide-react';
+import { User, ShieldCheck, Mail, Phone, MapPin, Award } from 'lucide-react';
 
 interface ParentProfileProps {
   parent: any;

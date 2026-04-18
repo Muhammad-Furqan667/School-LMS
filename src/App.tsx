@@ -12,6 +12,7 @@ import { StudentConsole } from './pages/admin/StudentConsole';
 import { TeacherConsole } from './pages/admin/TeacherConsole';
 import AdminDashboard from './pages/admin/Dashboard';
 import { CourseConsole } from './pages/admin/CourseConsole';
+import { SystemAudit } from './pages/admin/SystemAudit';
 import StudentFeeCard from './pages/admin/StudentFeeCard';
 import TeacherDashboard from './pages/teacher/Dashboard';
 import ParentDashboard from './pages/parent/Dashboard';
@@ -23,27 +24,16 @@ function App() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Check initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session) fetchProfile(session.user.id);
-      else setLoading(false);
-    });
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      if (session) {
-        setError(null);
-        fetchProfile(session.user.id);
-      } else {
-        setProfile(null);
-        setError(null);
-        setLoading(false);
-      }
-    });
-
-    return () => subscription.unsubscribe();
+    const customUserId = localStorage.getItem('custom_user_id');
+    
+    if (customUserId) {
+      setSession(true); // Dummy session
+      fetchProfile(customUserId);
+    } else {
+      setSession(null);
+      setProfile(null);
+      setLoading(false);
+    }
   }, []);
 
   const fetchProfile = async (userId: string) => {
@@ -96,7 +86,10 @@ function App() {
                         Try Again
                       </button>
                       <button 
-                        onClick={() => SchoolService.signOut()}
+                        onClick={() => {
+                          SchoolService.signOut();
+                          window.location.href = '/login';
+                        }}
                         className="w-full bg-slate-50 text-slate-500 font-bold py-4 rounded-2xl"
                       >
                         Sign Out & Reset
@@ -108,8 +101,8 @@ function App() {
                 )}
               </div>
             ) : profile?.role === 'admin' ? <Navigate to="/admin" /> :
-            profile?.role === 'teacher' ? <TeacherDashboard /> :
-            profile?.role === 'parent' ? <ParentDashboard /> :
+            profile?.role === 'teacher' ? <Navigate to="/teacher" /> :
+            profile?.role === 'parent' ? <Navigate to="/parent" /> :
             <Navigate to="/login" />
           } />
           
@@ -121,6 +114,7 @@ function App() {
               <Route path="students/:id/fee-card" element={<StudentFeeCard />} />
               <Route path="courses" element={<CourseConsole />} />
               <Route path="teachers" element={<TeacherConsole />} />
+              <Route path="audit" element={<SystemAudit />} />
             </Route>
           )}
 
@@ -131,10 +125,7 @@ function App() {
 
           {/* Parent Routes */}
           {profile?.role === 'parent' && (
-            <>
-              <Route path="/" element={<Navigate to="/parent" />} />
-              <Route path="/parent/*" element={<ParentDashboard />} />
-            </>
+            <Route path="/parent/*" element={<ParentDashboard />} />
           )}
         </Route>
 

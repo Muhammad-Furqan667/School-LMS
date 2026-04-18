@@ -14,6 +14,9 @@ const Login: React.FC = () => {
     try {
       await SchoolService.signIn(username, password);
       toast.success('Welcome back!');
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 500);
     } catch (error: any) {
       toast.error(error.message || 'Login failed');
     } finally {

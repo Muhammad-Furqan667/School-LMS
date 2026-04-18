@@ -551,41 +551,87 @@ export const StudentConsole: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Security Section */}
-                  <div className="space-y-4">
-                    <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100">
-                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                          <ShieldAlert className="h-3 w-3" /> Identification
-                       </p>
-                       <div className="space-y-3">
-                          <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-200/50">
-                             <div>
-                                <p className="text-xs font-black text-slate-900">CNIC / Bay-Form</p>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mt-1">{selectedStudent.cnic || 'Missing Data'}</p>
-                             </div>
-                          </div>
-                       </div>
-                    </div>
+                   {/* Security & Access Section */}
+                   <div className="space-y-4">
+                     <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                           <ShieldAlert className="h-3 w-3" /> Identification & Access
+                        </p>
+                        <div className="space-y-4">
+                           <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-200/50">
+                              <div>
+                                 <p className="text-xs font-black text-slate-900">CNIC / Bay-Form</p>
+                                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mt-1">{selectedStudent.cnic || 'Missing Data'}</p>
+                              </div>
+                           </div>
 
-                    <div className="flex gap-3">
-                      <button 
-                        onClick={() => handleToggleWarning(selectedStudent.id, !selectedStudent.is_locked)}
-                        className={`flex-1 py-4 px-4 rounded-2xl border font-black text-[11px] uppercase tracking-widest transition-all ${
-                          selectedStudent.is_locked 
-                            ? 'bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-100' 
-                            : 'bg-red-50 text-red-600 border-red-100 hover:bg-red-100'
-                        }`}
-                      >
-                        {selectedStudent.is_locked ? 'Unlock Account' : 'Flag Account'}
-                      </button>
-                      <button 
-                        onClick={() => handleOpenEditModal(selectedStudent)}
-                        className="p-4 bg-slate-900 text-white rounded-2xl hover:bg-slate-800 transition-all border border-slate-900"
-                      >
-                        <Edit3 className="h-5 w-5" />
-                      </button>
-                    </div>
-                  </div>
+                           {/* Account Status */}
+                           <div className={`p-5 rounded-2xl border ${selectedStudent.parents?.profile_id ? 'bg-emerald-50/50 border-emerald-100' : 'bg-amber-50/50 border-amber-100'}`}>
+                              <div className="flex items-center justify-between mb-3">
+                                 <p className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Portal Status</p>
+                                 <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase ${selectedStudent.parents?.profile_id ? 'bg-emerald-600 text-white' : 'bg-amber-600 text-white'}`}>
+                                    {selectedStudent.parents?.profile_id ? 'Active Login' : 'Login Pending'}
+                                 </span>
+                              </div>
+                              
+                              {!selectedStudent.parents?.profile_id ? (
+                                 <div className="space-y-3">
+                                    <p className="text-[10px] text-slate-500 font-medium leading-relaxed">
+                                       No unique login exists for this student yet. 
+                                    </p>
+                                    <button 
+                                       onClick={async () => {
+                                          const promise = SchoolService.createStudentAccess(selectedStudent.id, selectedStudent.roll_no, 'Password123!');
+                                          toast.promise(promise, {
+                                             loading: 'Generating Identity...',
+                                             success: 'Login Created! Username is ' + selectedStudent.roll_no,
+                                             error: (err) => err.message || 'Onboarding failed'
+                                          });
+                                          try { 
+                                             await promise;
+                                             fetchAll();
+                                             closeDetail();
+                                          } catch {}
+                                       }}
+                                       className="w-full py-3 bg-amber-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-amber-700 transition-all shadow-lg shadow-amber-500/20"
+                                    >
+                                       Generate Student Login
+                                    </button>
+                                 </div>
+                              ) : (
+                                 <div className="flex items-center justify-between">
+                                    <p className="text-[10px] font-bold text-slate-400">ID: {selectedStudent.roll_no}</p>
+                                    <button 
+                                       onClick={() => toast.info('Password Reset', { description: 'Contact admin to reset password for ' + selectedStudent.roll_no })}
+                                       className="text-[9px] font-black text-emerald-600 uppercase hover:underline"
+                                    >
+                                       Identity Settings
+                                    </button>
+                                 </div>
+                              )}
+                           </div>
+                        </div>
+                     </div>
+
+                     <div className="flex gap-3">
+                       <button 
+                         onClick={() => handleToggleLock(selectedStudent)}
+                         className={`flex-1 py-4 px-4 rounded-2xl border font-black text-[11px] uppercase tracking-widest transition-all ${
+                           selectedStudent.is_locked 
+                             ? 'bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-100' 
+                             : 'bg-red-50 text-red-600 border-red-100 hover:bg-red-100'
+                         }`}
+                       >
+                         {selectedStudent.is_locked ? 'Unlock Account' : 'Flag Account'}
+                       </button>
+                       <button 
+                         onClick={() => handleOpenEditModal(selectedStudent)}
+                         className="p-4 bg-slate-900 text-white rounded-2xl hover:bg-slate-800 transition-all border border-slate-900"
+                       >
+                         <Edit3 className="h-5 w-5" />
+                       </button>
+                     </div>
+                   </div>
 
                   <div className="pt-4 space-y-4">
                     <div className="flex items-center justify-between">

@@ -7,7 +7,8 @@ import {
   LogOut,
   Menu,
   X,
-  BookOpen
+  BookOpen,
+  ShieldCheck
 } from 'lucide-react';
 import { SchoolService } from '../../services/schoolService';
 
@@ -19,6 +20,7 @@ export const AdminLayout: React.FC = () => {
     { label: 'Students', path: '/admin/students', icon: Users },
     { label: 'Courses', path: '/admin/courses', icon: BookOpen },
     { label: 'Teachers', path: '/admin/teachers', icon: GraduationCap },
+    { label: 'System Audit', path: '/admin/audit', icon: ShieldCheck },
   ];
 
   const handleLogout = async () => {

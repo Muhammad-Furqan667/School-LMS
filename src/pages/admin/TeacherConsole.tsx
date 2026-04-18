@@ -383,6 +383,48 @@ export const TeacherConsole: React.FC = () => {
                   )}
                 </div>
 
+                 <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100">
+                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block flex items-center gap-2">
+                     <Calendar className="h-3 w-3" /> Digital Portal Access
+                   </label>
+                   {selectedTeacher.profile_id ? (
+                      <div className="flex items-center justify-between bg-emerald-50 p-4 rounded-xl border border-emerald-100">
+                         <div>
+                            <p className="text-xs font-black text-emerald-900 leading-none">Account Active</p>
+                            <p className="text-[9px] font-bold text-emerald-600 uppercase tracking-widest mt-1">Username: {selectedTeacher.full_name.split(' ')[0].toLowerCase()}</p>
+                         </div>
+                         <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                      </div>
+                   ) : (
+                      <div className="space-y-4">
+                         <div className="bg-amber-50 p-4 rounded-xl border border-amber-100">
+                            <p className="text-[10px] text-amber-800 font-medium leading-relaxed italic">
+                               This teacher does not have access to the dashboard yet.
+                            </p>
+                         </div>
+                         <button 
+                            onClick={async () => {
+                               const username = selectedTeacher.full_name.split(' ')[0].toLowerCase();
+                               const promise = SchoolService.createTeacherAccess(selectedTeacher.id, username, 'Password123!');
+                               toast.promise(promise, {
+                                  loading: 'Configuring Portal...',
+                                  success: 'Access Granted! Username is ' + username,
+                                  error: (err) => err.message || 'Onboarding failed'
+                               });
+                               try {
+                                  await promise;
+                                  fetchAll();
+                                  closeDetail();
+                               } catch {}
+                            }}
+                            className="w-full py-4 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-lg"
+                         >
+                            Initialize Faculty Portal
+                         </button>
+                      </div>
+                   )}
+                </div>
+
                 <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block flex items-center gap-2">
                     <Calendar className="h-3 w-3" /> Registration Date
