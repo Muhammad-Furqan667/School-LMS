@@ -1,0 +1,147 @@
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'sonner';
+import Login from './pages/Login';
+import Layout from './components/Layout';
+import { SchoolService } from './services/schoolService';
+import { useEffect, useState } from 'react';
+import { supabase } from './lib/supabase';
+import type { Tables } from './types/database';
+
+import { AdminLayout } from './pages/admin/AdminLayout';
+import { StudentConsole } from './pages/admin/StudentConsole';
+import { TeacherConsole } from './pages/admin/TeacherConsole';
+import AdminDashboard from './pages/admin/Dashboard';
+import { CourseConsole } from './pages/admin/CourseConsole';
+import StudentFeeCard from './pages/admin/StudentFeeCard';
+import TeacherDashboard from './pages/teacher/Dashboard';
+import ParentDashboard from './pages/parent/Dashboard';
+
+function App() {
+  const [session, setSession] = useState<any>(null);
+  const [profile, setProfile] = useState<Tables<'profiles'> | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Check initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session) fetchProfile(session.user.id);
+      else setLoading(false);
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      if (session) {
+        setError(null);
+        fetchProfile(session.user.id);
+      } else {
+        setProfile(null);
+        setError(null);
+        setLoading(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const fetchProfile = async (userId: string) => {
+    try {
+      setLoading(true);
+      const data = await SchoolService.getProfile(userId);
+      setProfile(data);
+      setError(null);
+    } catch (error: any) {
+      console.error('Profile fetch failed:', error);
+      setError(error.message || 'Identity verification failed. Please contact support.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-bg-slate">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  return (
+    <BrowserRouter>
+      <Toaster position="top-right" expand={false} richColors />
+      <Routes>
+        <Route path="/login" element={!session ? <Login /> : <Navigate to="/" />} />
+        
+        <Route element={session ? <Layout profile={profile} /> : <Navigate to="/login" />}>
+          {/* Main Dashboard Redirection Logic below */}
+          <Route path="/" element={
+            !profile && session ? (
+              <div className="min-h-screen flex flex-col items-center justify-center bg-bg-slate p-6 text-center">
+                {error ? (
+                  <div className="max-w-md w-full bg-white rounded-3xl p-8 border border-red-100 shadow-xl animate-in zoom-in-95 duration-300">
+                    <div className="h-20 w-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                      <div className="h-10 w-10 bg-red-500 rounded-full animate-pulse" />
+                    </div>
+                    <h2 className="text-2xl font-black text-slate-900 mb-2">Access Denied</h2>
+                    <p className="text-slate-500 mb-8 leading-relaxed">
+                      We found your account, but your **Admin Profile** has not been initialized yet.
+                    </p>
+                    <div className="space-y-4">
+                      <button 
+                        onClick={() => window.location.reload()}
+                        className="w-full bg-slate-900 text-white font-bold py-4 rounded-2xl"
+                      >
+                        Try Again
+                      </button>
+                      <button 
+                        onClick={() => SchoolService.signOut()}
+                        className="w-full bg-slate-50 text-slate-500 font-bold py-4 rounded-2xl"
+                      >
+                        Sign Out & Reset
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                )}
+              </div>
+            ) : profile?.role === 'admin' ? <Navigate to="/admin" /> :
+            profile?.role === 'teacher' ? <TeacherDashboard /> :
+            profile?.role === 'parent' ? <ParentDashboard /> :
+            <Navigate to="/login" />
+          } />
+          
+          {/* Admin Managed Hubs */}
+          {profile?.role === 'admin' && (
+            <Route path="/admin" element={<AdminLayout />}>
+              <Route index element={<AdminDashboard />} />
+              <Route path="students" element={<StudentConsole />} />
+              <Route path="students/:id/fee-card" element={<StudentFeeCard />} />
+              <Route path="courses" element={<CourseConsole />} />
+              <Route path="teachers" element={<TeacherConsole />} />
+            </Route>
+          )}
+
+          {/* Teacher Routes */}
+          {profile?.role === 'teacher' && (
+            <Route path="/teacher/*" element={<TeacherDashboard />} />
+          )}
+
+          {/* Parent Routes */}
+          {profile?.role === 'parent' && (
+            <>
+              <Route path="/" element={<Navigate to="/parent" />} />
+              <Route path="/parent/*" element={<ParentDashboard />} />
+            </>
+          )}
+        </Route>
+
+        <Route path="*" element={<Navigate to="/" />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
+export default App;
