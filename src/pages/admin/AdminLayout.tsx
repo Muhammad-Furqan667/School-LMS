@@ -8,7 +8,8 @@ import {
   Menu,
   X,
   BookOpen,
-  ShieldCheck
+  ShieldCheck,
+  CalendarCheck2
 } from 'lucide-react';
 import { SchoolService } from '../../services/schoolService';
 
@@ -17,6 +18,8 @@ export const AdminLayout: React.FC = () => {
 
   const navItems = [
     { label: 'Overview', path: '/admin', icon: LayoutDashboard, end: true },
+    { label: 'Attendance', path: '/admin/attendance', icon: CalendarCheck2 },
+    { label: 'Classes', path: '/admin/classes', icon: GraduationCap },
     { label: 'Students', path: '/admin/students', icon: Users },
     { label: 'Courses', path: '/admin/courses', icon: BookOpen },
     { label: 'Teachers', path: '/admin/teachers', icon: GraduationCap },
@@ -75,7 +78,7 @@ export const AdminLayout: React.FC = () => {
   );
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] flex flex-col lg:flex-row overflow-x-hidden">
+    <div className="h-screen bg-[#f8fafc] flex flex-col lg:flex-row overflow-hidden">
       {/* 
          Removed border-l-[12px] to fix width overflow issues 
          Added overflow-x-hidden to the root to prevent any layout shifts
@@ -98,7 +101,7 @@ export const AdminLayout: React.FC = () => {
       </header>
 
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex w-72 bg-white border-r border-slate-200 flex-col fixed inset-y-0 left-0 z-50">
+      <aside className="hidden lg:flex flex-col w-72 bg-white border-r border-slate-200 z-40 flex-shrink-0 overflow-y-auto">
         <NavContent />
       </aside>
 
@@ -119,9 +122,11 @@ export const AdminLayout: React.FC = () => {
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 w-full lg:pl-72 min-h-screen">
-        <div className="p-4 md:p-10 max-w-[1600px] mx-auto w-full">
-           <Outlet />
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+        <div className="flex-1 overflow-auto p-4 md:p-10">
+           <div className="max-w-[1600px] mx-auto">
+             <Outlet />
+           </div>
         </div>
       </main>
     </div>

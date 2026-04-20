@@ -12,6 +12,8 @@ import { StudentConsole } from './pages/admin/StudentConsole';
 import { TeacherConsole } from './pages/admin/TeacherConsole';
 import AdminDashboard from './pages/admin/Dashboard';
 import { CourseConsole } from './pages/admin/CourseConsole';
+import { ClassConsole } from './pages/admin/ClassConsole';
+import { AttendanceConsole } from './pages/admin/AttendanceConsole';
 import { SystemAudit } from './pages/admin/SystemAudit';
 import StudentFeeCard from './pages/admin/StudentFeeCard';
 import TeacherDashboard from './pages/teacher/Dashboard';
@@ -106,17 +108,7 @@ function App() {
             <Navigate to="/login" />
           } />
           
-          {/* Admin Managed Hubs */}
-          {profile?.role === 'admin' && (
-            <Route path="/admin" element={<AdminLayout />}>
-              <Route index element={<AdminDashboard />} />
-              <Route path="students" element={<StudentConsole />} />
-              <Route path="students/:id/fee-card" element={<StudentFeeCard />} />
-              <Route path="courses" element={<CourseConsole />} />
-              <Route path="teachers" element={<TeacherConsole />} />
-              <Route path="audit" element={<SystemAudit />} />
-            </Route>
-          )}
+          {/* End of Layout nested routes */}
 
           {/* Teacher Routes */}
           {profile?.role === 'teacher' && (
@@ -129,6 +121,19 @@ function App() {
           )}
         </Route>
 
+        {/* Admin Managed Hubs (Standalone Layout) */}
+        {profile?.role === 'admin' && (
+          <Route path="/admin" element={session ? <AdminLayout /> : <Navigate to="/login" />}>
+            <Route index element={<AdminDashboard />} />
+            <Route path="attendance" element={<AttendanceConsole />} />
+            <Route path="students" element={<StudentConsole />} />
+            <Route path="students/:id/fee-card" element={<StudentFeeCard />} />
+            <Route path="classes" element={<ClassConsole />} />
+            <Route path="courses" element={<CourseConsole />} />
+            <Route path="teachers" element={<TeacherConsole />} />
+            <Route path="audit" element={<SystemAudit />} />
+          </Route>
+        )}
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </BrowserRouter>

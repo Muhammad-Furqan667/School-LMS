@@ -6,7 +6,6 @@ import { useSchoolEvents } from '../../hooks/useSchoolEvents';
 import { toast } from 'sonner';
 // Imports cleaned
 import { MarksModal } from '../../components/teacher/MarksModal';
-import { CourseModal } from '../../components/admin/CourseModal';
 import { AttendanceBox } from '../../components/teacher/AttendanceBox';
 import { SalaryRecord } from '../../components/teacher/SalaryRecord';
 import { TeacherProfile } from '../../components/teacher/TeacherProfile';
@@ -25,7 +24,7 @@ const TeacherDashboard: React.FC = () => {
   const [teacherStats, setTeacherStats] = useState<any>(null);
   const [teacherData, setTeacherData] = useState<any>(null);
   const [profileData, setProfileData] = useState<any>(null);
-  const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
+  const [teacherTimetable, setTeacherTimetable] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Subscribe to real-time events (Admin OTAs)
@@ -50,12 +49,14 @@ const TeacherDashboard: React.FC = () => {
       setTeacherData(teacher);
       setProfileData(profile);
 
-      const [assignData, statsData] = await Promise.all([
+      const [assignData, statsData, tTimetable] = await Promise.all([
         SchoolService.getTeacherAssignments(teacher.id),
-        SchoolService.getTeacherStats(customUserId)
+        SchoolService.getTeacherStats(customUserId),
+        SchoolService.getTeacherTimetable(teacher.id)
       ]);
       setAssignments(assignData);
       setTeacherStats(statsData);
+      setTeacherTimetable(tTimetable);
 
       if (assignData.length > 0) {
         setSelectedAssignment(assignData[0].id);
@@ -127,8 +128,8 @@ const TeacherDashboard: React.FC = () => {
             setDiaryContent={setDiaryContent}
             handleCreateDiary={handleCreateDiary}
             teacherStats={teacherStats}
-            setIsCourseModalOpen={setIsCourseModalOpen}
             timetable={timetable}
+            teacherTimetable={teacherTimetable}
             students={students}
             results={results}
             setActiveStudentForMarks={setActiveStudentForMarks}
@@ -136,7 +137,29 @@ const TeacherDashboard: React.FC = () => {
             history={history}
           />
         } />
-        <Route path="/attendance" element={<AttendanceBox students={students} />} />
+        <Route path="/attendance" element={
+          <AttendanceBox 
+            students={students} 
+            onSave={async (attendanceData) => {
+               if(!selectedAssignment) {
+                 toast.error('Select an assignment first to mark attendance');
+                 return;
+               }
+               try {
+                 const records = students.map(s => ({
+                   student_id: s.id,
+                   date: new Date().toISOString().split('T')[0],
+                   status: attendanceData[s.id] || 'present',
+                   assignment_id: selectedAssignment
+                 }));
+                 await SchoolService.bulkUpsertAttendance(records);
+                 toast.success('Attendance synced successfully');
+               } catch (e) {
+                 toast.error('Failed to sync attendance');
+               }
+            }} 
+          />
+        } />
         <Route path="/salary" element={<SalaryRecord teacher={teacherData} />} />
         <Route path="/profile" element={<TeacherProfile teacher={teacherData} profile={profileData} />} />
         {/* Fallback to Overview for unknown sub-routes */}
@@ -149,8 +172,8 @@ const TeacherDashboard: React.FC = () => {
             setDiaryContent={setDiaryContent}
             handleCreateDiary={handleCreateDiary}
             teacherStats={teacherStats}
-            setIsCourseModalOpen={setIsCourseModalOpen}
             timetable={timetable}
+            teacherTimetable={teacherTimetable}
             students={students}
             results={results}
             setActiveStudentForMarks={setActiveStudentForMarks}
@@ -170,12 +193,6 @@ const TeacherDashboard: React.FC = () => {
           const asgn = assignments.find(a => a.id === selectedAssignment);
           if (asgn) fetchAssignmentDetails(asgn);
         }}
-      />
-      
-      <CourseModal 
-        isOpen={isCourseModalOpen}
-        onClose={() => setIsCourseModalOpen(false)}
-        onSuccess={fetchData}
       />
     </div>
   );

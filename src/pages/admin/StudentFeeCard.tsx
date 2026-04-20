@@ -225,22 +225,22 @@ const StudentFeeCard: React.FC = () => {
                           <tr key={f.id} className="hover:bg-slate-50/50 transition-colors">
                             <td className="px-8 py-5 font-black text-slate-900">{f.month}</td>
                             <td className="px-8 py-5 text-sm font-bold text-slate-500 group-hover:text-slate-900 transition-colors">PKR {Number(f.amount_due).toLocaleString()}</td>
-                            <td className="px-8 py-5 text-xs text-slate-400 font-bold uppercase tracking-widest">
-                               {f.status === 'paid' ? (
-                                  <span className="flex items-center gap-2 group-hover:text-emerald-600 transition-colors">
-                                    <Clock className="h-3.5 w-3.5" />
-                                    {new Date(f.created_at).toLocaleDateString()}
-                                  </span>
-                               ) : 'Pending Collection'}
-                            </td>
-                            <td className="px-8 py-5 text-center">
-                               <div className={`mx-auto w-fit px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest border ${
-                                 f.status === 'paid' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 
-                                 f.status === 'partial' ? 'bg-amber-50 text-amber-600 border-amber-100' : 'bg-rose-50 text-rose-600 border-rose-100'
-                               }`}>
-                                 {f.status}
-                               </div>
-                            </td>
+                             <td className="px-8 py-5 text-xs text-slate-400 font-bold uppercase tracking-widest">
+                                {f.status?.toLowerCase() === 'paid' ? (
+                                   <span className="flex items-center gap-2 group-hover:text-emerald-600 transition-colors">
+                                     <Clock className="h-3.5 w-3.5" />
+                                     {new Date(f.created_at).toLocaleDateString()}
+                                   </span>
+                                ) : 'Pending Collection'}
+                             </td>
+                             <td className="px-8 py-5 text-center">
+                                <div className={`mx-auto w-fit px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest border ${
+                                  f.status?.toLowerCase() === 'paid' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 
+                                  f.status?.toLowerCase() === 'partial' ? 'bg-amber-50 text-amber-600 border-amber-100' : 'bg-rose-50 text-rose-600 border-rose-100'
+                                }`}>
+                                  {f.status}
+                                </div>
+                             </td>
                             <td className="px-8 py-5 text-right font-black text-slate-900">
                                PKR {Number(f.amount_paid).toLocaleString()}
                             </td>

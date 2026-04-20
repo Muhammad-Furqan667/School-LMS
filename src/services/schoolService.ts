@@ -25,6 +25,24 @@ export class SchoolService {
     return data;
   }
 
+  static async upsertClass(classData: any) {
+    const { data, error } = await supabase
+      .from('classes')
+      .upsert(classData)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
+  static async deleteClass(classId: string) {
+    const { error } = await supabase
+      .from('classes')
+      .delete()
+      .eq('id', classId);
+    if (error) throw error;
+  }
+
   /**
    * STUDENT MANAGEMENT
    */
@@ -36,7 +54,7 @@ export class SchoolService {
    * @returns {Promise<Tables<'students'>[]>} Array of students.
    */
   static async getStudents(classId?: string, parentId?: string) {
-    let query = supabase.from('students').select('*, parents(*), classes(*)');
+    let query = supabase.from('students').select('*, parents(*), classes(*), fees(status)');
     if (classId) query = query.eq('class_id', classId);
     if (parentId) query = query.eq('parent_id', parentId);
     
@@ -124,10 +142,43 @@ export class SchoolService {
   }
 
   /**
+   * Fetches all attendance records for a specific date across all classes.
+   */
+  static async getAllAttendance(date: string) {
+    const { data, error } = await supabase
+      .from('attendance')
+      .select(`
+        *,
+        students:student_id(*),
+        assignment:teacher_assignments(
+          *,
+          subject:subjects(*),
+          class:classes(*),
+          teacher:teachers(*)
+        )
+      `)
+      .eq('date', date);
+    
+    if (error) throw error;
+    return data;
+  }
+
+  static async getAttendanceByClassAndDate(classId: string, date: string) {
+    const { data, error } = await supabase
+      .from('attendance')
+      .select('*, teacher_assignments!inner(class_id)')
+      .eq('date', date)
+      .eq('teacher_assignments.class_id', classId);
+    
+    if (error) throw error;
+    return data;
+  }
+
+  /**
    * Calculates attendance summary for a student.
    */
   static async getAttendanceStats(studentId: string) {
-    const { data, error } = await supabase
+    const { data: attendanceData, error } = await supabase
       .from('attendance')
       .select('status')
       .eq('student_id', studentId);
@@ -135,24 +186,41 @@ export class SchoolService {
     if (error) throw error;
     
     const stats = {
-      present: 0,
-      absent: 0,
-      late: 0,
-      total: data.length,
+      present: (attendanceData || []).filter((a: any) => a.status === 'present').length,
+      absent: (attendanceData || []).filter((a: any) => a.status === 'absent').length,
+      late: (attendanceData || []).filter((a: any) => a.status === 'late').length,
+      total: attendanceData.length,
       percentage: 0
     };
-
-    data.forEach((rec: any) => {
-      if (rec.status === 'present') stats.present++;
-      else if (rec.status === 'absent') stats.absent++;
-      else if (rec.status === 'late') stats.late++;
-    });
 
     if (stats.total > 0) {
       stats.percentage = Math.round(((stats.present + (stats.late * 0.5)) / stats.total) * 100);
     }
 
     return stats;
+  }
+
+  static async bulkUpsertAttendance(records: any[]) {
+    if (!records || records.length === 0) return;
+    const { data, error } = await supabase
+      .from('attendance')
+      .upsert(records, { onConflict: 'student_id,date,assignment_id' });
+    if (error) throw error;
+    return data;
+  }
+
+  /**
+   * Fetches all students enrolled in a specific class.
+   */
+  static async getStudentsByClass(classId: string) {
+    const { data, error } = await supabase
+      .from('students')
+      .select('*')
+      .eq('class_id', classId)
+      .order('name');
+    
+    if (error) throw error;
+    return data;
   }
 
   /**
@@ -167,6 +235,19 @@ export class SchoolService {
         subject:subjects(*)
       `)
       .eq('teacher_id', teacherId);
+    if (error) throw error;
+    return data;
+  }
+
+  static async getTeacherAssignmentsByClass(classId: string) {
+    const { data, error } = await supabase
+      .from('teacher_assignments')
+      .select(`
+        *,
+        subject:subjects(*),
+        teacher:teachers(*)
+      `)
+      .eq('class_id', classId);
     if (error) throw error;
     return data;
   }
@@ -334,6 +415,30 @@ export class SchoolService {
     return profile;
   }
 
+  static async upsertStudentAccess(studentId: string, rollNo: string, password: string) {
+    try {
+      await this.createStudentAccess(studentId, rollNo, password);
+    } catch (e: any) {
+      if (e.message?.includes('already registered')) {
+        await this.resetUserPassword(rollNo, password);
+      } else {
+        throw e;
+      }
+    }
+  }
+
+  static async upsertTeacherAccess(teacherId: string, username: string, password: string) {
+    try {
+      await this.createTeacherAccess(teacherId, username, password);
+    } catch (e: any) {
+      if (e.message?.includes('already registered')) {
+        await this.resetUserPassword(username, password);
+      } else {
+        throw e;
+      }
+    }
+  }
+
   /**
    * Identifies all students and teachers who are missing a digital login.
    * This is used for the "System Audit" repair tool.
@@ -395,6 +500,45 @@ export class SchoolService {
     
     if (error) throw error;
     return data;
+  }
+
+  /**
+   * Fetches the full weekly timetable for a specific teacher.
+   */
+  static async getTeacherTimetable(teacherId: string) {
+    const { data, error } = await supabase
+      .from('timetable')
+      .select(`
+        *,
+        assignment:teacher_assignments!inner(
+          id,
+          teacher_id,
+          subject:subjects(name),
+          class:classes(grade, section)
+        )
+      `)
+      .eq('assignment.teacher_id', teacherId);
+    
+    if (error) throw error;
+    return data;
+  }
+
+  static async upsertTimetable(timetableRecord: any) {
+    const { data, error } = await supabase
+      .from('timetable')
+      .upsert(timetableRecord)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
+  static async deleteTimetable(id: string) {
+    const { error } = await supabase
+      .from('timetable')
+      .delete()
+      .eq('id', id);
+    if (error) throw error;
   }
 
   /**
@@ -652,12 +796,13 @@ export class SchoolService {
   }
 
   static async resetUserPassword(id: string, newPassword: string) {
-    // Note: This requires the user to be using their profile id or username
-    // For simplicity in this dev phase, we use the account generation logic
+    let rawUsername = id.includes('@') ? id.split('@')[0] : id;
+    rawUsername = rawUsername.toLowerCase().trim();
+
     const { data: profile } = await supabase
       .from('profiles')
       .select('id')
-      .eq('username', id)
+      .eq('username', rawUsername)
       .single();
 
     if (!profile) throw new Error('User profile not found');
@@ -666,6 +811,15 @@ export class SchoolService {
       .from('profiles')
       .update({ password: newPassword })
       .eq('id', profile.id);
+
+    if (error) throw error;
+  }
+
+  static async resetUserPasswordById(profileId: string, newPassword: string) {
+    const { error } = await (supabase as any)
+      .from('profiles')
+      .update({ password: newPassword })
+      .eq('id', profileId);
 
     if (error) throw error;
   }
@@ -787,6 +941,9 @@ export class SchoolService {
    * Creates or updates a fee record.
    */
   static async upsertFee(fee: any) {
+    if (fee.status) {
+      fee.status = fee.status.charAt(0).toUpperCase() + fee.status.slice(1).toLowerCase();
+    }
     const { data, error } = await supabase
       .from('fees')
       .upsert(fee)
@@ -800,9 +957,11 @@ export class SchoolService {
    * Updates fee payment status.
    */
   static async updateFeeStatus(feeId: string, status: string, amountPaid: number) {
+    const normalizedStatus = status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
+    
     const { data, error } = await supabase
       .from('fees')
-      .update({ status, amount_paid: amountPaid })
+      .update({ status: normalizedStatus, amount_paid: amountPaid })
       .eq('id', feeId)
       .select()
       .single();

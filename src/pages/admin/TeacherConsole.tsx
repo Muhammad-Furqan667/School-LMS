@@ -1,22 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  UserPlus, 
-  DollarSign, 
-  Trash2, 
+import {
+  UserPlus,
+  DollarSign,
+  Trash2,
   X,
-  Plus,
   Search,
   Edit3,
   Award,
   Calendar,
   BookOpen,
-  GraduationCap,
   Briefcase,
   ChevronRight,
-  Clock
+  ShieldCheck,
+  CheckCircle2,
+  CheckCircle,
 } from 'lucide-react';
 import { SchoolService } from '../../services/schoolService';
-import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 
 export const TeacherConsole: React.FC = () => {
@@ -25,23 +24,29 @@ export const TeacherConsole: React.FC = () => {
   const [subjects, setSubjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  
+
   // Modals
   const [isHireModalOpen, setIsHireModalOpen] = useState(false);
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
-  
+
   // Detail panel
   const [selectedTeacher, setSelectedTeacher] = useState<any>(null);
+  const [teacherAssignments, setTeacherAssignments] = useState<any[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({
     full_name: '',
     salary: 0,
+    username: '',
+    password: '',
     joined_at: ''
   });
+  const [activeTab, setActiveTab] = useState<'profile' | 'curriculum'>('profile');
 
   // Hire form
   const [hireForm, setHireForm] = useState({
     full_name: '',
+    username: '',
+    password: '',
     salary: 0,
   });
 
@@ -78,9 +83,21 @@ export const TeacherConsole: React.FC = () => {
     setEditForm({
       full_name: teacher.full_name,
       salary: teacher.salary || 0,
+      username: '',
+      password: '',
       joined_at: teacher.joined_at ? teacher.joined_at.split('T')[0] : (teacher.created_at ? teacher.created_at.split('T')[0] : '')
     });
     setIsEditing(false);
+    fetchTeacherAssignments(teacher.id);
+  };
+
+  const fetchTeacherAssignments = async (teacherId: string) => {
+    try {
+      const data = await SchoolService.getTeacherAssignments(teacherId);
+      setTeacherAssignments(data || []);
+    } catch (err) {
+      toast.error('Failed to load assignments');
+    }
   };
 
   const closeDetail = () => {
@@ -94,16 +111,18 @@ export const TeacherConsole: React.FC = () => {
 
   const handleHire = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!hireForm.full_name.trim()) return;
+    if (!hireForm.full_name.trim() || !hireForm.username.trim() || !hireForm.password.trim()) return;
     try {
       setLoading(true);
-      await SchoolService.upsertTeacher({
+      const res = await SchoolService.upsertTeacher({
         full_name: hireForm.full_name,
         salary: hireForm.salary
       });
+      await SchoolService.upsertTeacherAccess(res.id, hireForm.username, hireForm.password);
+
       toast.success('Teacher hired successfully');
       setIsHireModalOpen(false);
-      setHireForm({ full_name: '', salary: 0 });
+      setHireForm({ full_name: '', username: '', password: '', salary: 0 });
       fetchAll();
     } catch {
       toast.error('Hiring failed');
@@ -120,6 +139,15 @@ export const TeacherConsole: React.FC = () => {
         salary: editForm.salary,
         joined_at: editForm.joined_at ? new Date(editForm.joined_at).toISOString() : null
       });
+
+      if (editForm.password) {
+        if (selectedTeacher.profile_id) {
+          await SchoolService.resetUserPasswordById(selectedTeacher.profile_id, editForm.password);
+        } else if (editForm.username) {
+          await SchoolService.upsertTeacherAccess(selectedTeacher.id, editForm.username, editForm.password);
+        }
+      }
+
       toast.success('Teacher updated');
       setIsEditing(false);
       fetchAll();
@@ -189,7 +217,7 @@ export const TeacherConsole: React.FC = () => {
             {teachers.length} teacher{teachers.length !== 1 ? 's' : ''} actively managing curriculum.
           </p>
         </div>
-        <button 
+        <button
           onClick={() => setIsHireModalOpen(true)}
           className="flex items-center justify-center gap-2 px-8 py-5 bg-emerald-600 text-white rounded-2xl font-black text-sm shadow-xl shadow-emerald-500/20 hover:bg-emerald-700 active:scale-95 transition-all w-full lg:w-auto"
         >
@@ -201,7 +229,7 @@ export const TeacherConsole: React.FC = () => {
       {/* Modern Search */}
       <div className="relative group max-w-2xl px-1">
         <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-300 group-hover:text-emerald-500 transition-colors" />
-        <input 
+        <input
           type="text"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
@@ -215,12 +243,11 @@ export const TeacherConsole: React.FC = () => {
         {/* Teacher Cards Grid */}
         <div className={`grid gap-4 md:gap-6 transition-all ${selectedTeacher ? 'grid-cols-1 lg:grid-cols-2 xl:flex-1' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 w-full'}`}>
           {filteredTeachers.map((teacher) => (
-            <div 
-              key={teacher.id} 
+            <div
+              key={teacher.id}
               onClick={() => openTeacherDetail(teacher)}
-              className={`bg-white rounded-[2.5rem] border p-8 shadow-sm hover:shadow-2xl hover:shadow-slate-200/50 transition-all group cursor-pointer relative overflow-hidden ${
-                selectedTeacher?.id === teacher.id ? 'border-emerald-300 ring-2 ring-emerald-100 shadow-xl' : 'border-slate-200'
-              }`}
+              className={`bg-white rounded-[2.5rem] border p-8 shadow-sm hover:shadow-2xl hover:shadow-slate-200/50 transition-all group cursor-pointer relative overflow-hidden ${selectedTeacher?.id === teacher.id ? 'border-emerald-300 ring-2 ring-emerald-100 shadow-xl' : 'border-slate-200'
+                }`}
             >
               <div className="flex items-start justify-between mb-8">
                 <div className="h-16 w-16 bg-slate-50 border border-slate-100 rounded-[1.25rem] flex items-center justify-center font-black text-slate-300 text-2xl group-hover:bg-emerald-600 group-hover:text-white group-hover:border-emerald-500 transition-all duration-300">
@@ -234,8 +261,8 @@ export const TeacherConsole: React.FC = () => {
               <div className="space-y-1 mb-8">
                 <h3 className="text-xl font-black text-slate-900 group-hover:text-emerald-700 transition-colors leading-tight">{teacher.full_name}</h3>
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em]">
-                  {teacher.joined_at 
-                    ? `Active since ${new Date(teacher.joined_at).toLocaleDateString('en-PK', { month: 'short', year: 'numeric' })}` 
+                  {teacher.joined_at
+                    ? `Active since ${new Date(teacher.joined_at).toLocaleDateString('en-PK', { month: 'short', year: 'numeric' })}`
                     : 'New Faculty Entry'}
                 </p>
               </div>
@@ -281,232 +308,256 @@ export const TeacherConsole: React.FC = () => {
           {!loading && filteredTeachers.length === 0 && (
             <div className="col-span-full p-20 text-center">
               <div className="h-20 w-20 bg-slate-50 rounded-[2.5rem] flex items-center justify-center mx-auto mb-6">
-                 <Briefcase className="h-10 w-10 text-slate-200" />
+                <Briefcase className="h-10 w-10 text-slate-200" />
               </div>
               <p className="text-slate-400 font-black mb-1 italic">No faculty records detected</p>
             </div>
           )}
         </div>
 
-        {/* Teacher Detail Slide-Over (Responsive Overlay) */}
+        {/* Teacher Detail Slide-Over (Responsive Overlay) -> NOW A CENTERED MODAL */}
         {selectedTeacher && (
-          <div className="fixed inset-0 z-[100] xl:relative xl:z-auto xl:w-[460px] bg-white xl:rounded-[2.5rem] border-0 xl:border border-slate-200 shadow-2xl xl:shadow-sm overflow-hidden flex flex-col animate-in slide-in-from-right-5 duration-300 shrink-0">
-            {/* Header */}
-            <div className="p-8 border-b border-slate-100 bg-gradient-to-br from-slate-900 to-slate-800 text-white relative flex flex-col items-center text-center">
-              <div className="absolute right-6 top-6">
-                <button onClick={closeDetail} className="p-3 bg-white/10 rounded-2xl hover:bg-white/20 transition-colors">
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md" onClick={closeDetail} />
+            <div className="relative bg-white rounded-[3rem] w-full max-w-4xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col md:flex-row h-[90vh] md:h-auto md:max-h-[85vh]">
+              {/* Sidebar Info Section */}
+              <div className="w-full md:w-80 bg-slate-900 p-8 text-white flex flex-col relative overflow-y-auto min-h-[300px] md:min-h-0">
+                <button onClick={closeDetail} className="absolute right-6 top-6 p-3 bg-white/10 rounded-2xl hover:bg-white/20 transition-colors">
                   <X className="h-5 w-5" />
                 </button>
-              </div>
-              
-              <div className="h-24 w-24 bg-white/10 rounded-[2.5rem] border border-white/10 flex items-center justify-center font-black text-4xl mb-6 backdrop-blur-xl shadow-2xl">
-                {selectedTeacher.full_name[0]}
-              </div>
-              
-              {isEditing ? (
-                <div className="w-full space-y-2">
-                  <input 
-                    value={editForm.full_name}
-                    onChange={(e) => setEditForm({...editForm, full_name: e.target.value})}
-                    placeholder="Enter Full Name"
-                    className="text-xl font-black bg-white/10 rounded-[1.25rem] px-5 py-3 w-full outline-none border border-white/20 focus:bg-white/20 transition-all text-center"
-                  />
-                  <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Editing Faculty Name</p>
-                </div>
-              ) : (
-                <div className="space-y-1">
-                   <h2 className="text-2xl font-black tracking-tight">{selectedTeacher.full_name}</h2>
-                   <p className="text-emerald-400 text-[10px] font-black uppercase tracking-[0.2em] pt-1">Senior Faculty Member</p>
-                </div>
-              )}
-            </div>
 
-            {/* Profile Content */}
-            <div className="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar">
-              {/* Context Actions */}
-              <div className="flex gap-3">
-                {isEditing ? (
-                  <>
-                    <button 
-                      onClick={handleSaveEdit}
-                      className="flex-1 py-4 bg-emerald-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-500/20"
-                    >
-                      Commit Changes
-                    </button>
-                    <button 
-                      onClick={() => {
-                        setIsEditing(false);
-                        setEditForm({
-                          full_name: selectedTeacher.full_name,
-                          salary: selectedTeacher.salary || 0,
-                          joined_at: selectedTeacher.joined_at ? selectedTeacher.joined_at.split('T')[0] : ''
-                        });
-                      }}
-                      className="flex-1 py-4 bg-slate-100 text-slate-500 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-200 transition-all"
-                    >
-                      Discard
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button 
-                      onClick={() => setIsEditing(true)}
-                      className="flex-1 py-4 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-800 transition-all flex items-center justify-center gap-3 shadow-xl shadow-slate-200"
-                    >
-                      <Edit3 className="h-4 w-4" /> Modify Profile
-                    </button>
-                    <button 
-                      onClick={() => handleDeleteTeacher(selectedTeacher.id)}
-                      className="py-4 px-5 bg-red-50 text-red-600 rounded-2xl hover:bg-red-100 transition-all border border-red-100"
-                    >
-                      <Trash2 className="h-5 w-5" />
-                    </button>
-                  </>
-                )}
-              </div>
+                <div className="flex flex-col items-center text-center mt-6">
+                  <div className="h-24 w-24 bg-white/10 rounded-[2.5rem] border border-white/10 flex items-center justify-center font-black text-4xl mb-6 backdrop-blur-xl shadow-2xl">
+                    {selectedTeacher.full_name?.[0]}
+                  </div>
 
-              {/* Data Blocks */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-4">
-                <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block flex items-center gap-2">
-                    <DollarSign className="h-3 w-3" /> Agreement Salary (PKR)
-                  </label>
                   {isEditing ? (
-                    <input 
-                      type="number"
-                      value={editForm.salary}
-                      onChange={(e) => setEditForm({...editForm, salary: parseFloat(e.target.value) || 0})}
-                      className="w-full p-4 bg-white border border-slate-200 rounded-[1.25rem] outline-none font-black text-slate-900 focus:ring-4 focus:ring-emerald-500/5 transition-all"
-                    />
+                    <div className="w-full space-y-2">
+                      <input
+                        value={editForm.full_name}
+                        onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })}
+                        placeholder="Enter Full Name"
+                        className="text-xl font-black bg-white/10 rounded-[1.25rem] px-5 py-3 w-full outline-none border border-white/20 focus:bg-white/20 transition-all text-center"
+                      />
+                      <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Editing Faculty Name</p>
+                    </div>
                   ) : (
-                    <p className="text-xl font-black text-slate-900 tracking-tight">PKR {(selectedTeacher.salary || 0).toLocaleString()}</p>
+                    <>
+                      <h2 className="text-2xl font-black tracking-tight">{selectedTeacher.full_name}</h2>
+                      <p className="text-emerald-400 text-[10px] font-black uppercase tracking-[0.2em] pt-1 leading-none mt-2">Senior Faculty Member</p>
+                    </>
                   )}
                 </div>
 
-                 <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100">
-                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block flex items-center gap-2">
-                     <Calendar className="h-3 w-3" /> Digital Portal Access
-                   </label>
-                   {selectedTeacher.profile_id ? (
-                      <div className="flex items-center justify-between bg-emerald-50 p-4 rounded-xl border border-emerald-100">
-                         <div>
-                            <p className="text-xs font-black text-emerald-900 leading-none">Account Active</p>
-                            <p className="text-[9px] font-bold text-emerald-600 uppercase tracking-widest mt-1">Username: {selectedTeacher.full_name.split(' ')[0].toLowerCase()}</p>
-                         </div>
-                         <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                      </div>
-                   ) : (
-                      <div className="space-y-4">
-                         <div className="bg-amber-50 p-4 rounded-xl border border-amber-100">
-                            <p className="text-[10px] text-amber-800 font-medium leading-relaxed italic">
-                               This teacher does not have access to the dashboard yet.
-                            </p>
-                         </div>
-                         <button 
-                            onClick={async () => {
-                               const username = selectedTeacher.full_name.split(' ')[0].toLowerCase();
-                               const promise = SchoolService.createTeacherAccess(selectedTeacher.id, username, 'Password123!');
-                               toast.promise(promise, {
-                                  loading: 'Configuring Portal...',
-                                  success: 'Access Granted! Username is ' + username,
-                                  error: (err) => err.message || 'Onboarding failed'
-                               });
-                               try {
-                                  await promise;
-                                  fetchAll();
-                                  closeDetail();
-                               } catch {}
-                            }}
-                            className="w-full py-4 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-lg"
-                         >
-                            Initialize Faculty Portal
-                         </button>
-                      </div>
-                   )}
-                </div>
-
-                <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block flex items-center gap-2">
-                    <Calendar className="h-3 w-3" /> Registration Date
-                  </label>
+                <div className="flex flex-col gap-3 mt-auto pt-10">
                   {isEditing ? (
-                    <input 
-                      type="date"
-                      value={editForm.joined_at}
-                      onChange={(e) => setEditForm({...editForm, joined_at: e.target.value})}
-                      className="w-full p-4 bg-white border border-slate-200 rounded-[1.25rem] outline-none font-bold text-slate-900 focus:ring-4 focus:ring-emerald-500/5 transition-all"
-                    />
+                    <>
+                      <button
+                        onClick={handleSaveEdit}
+                        className="w-full py-4 bg-emerald-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-500/20"
+                      >
+                        Commit Changes
+                      </button>
+                      <button
+                        onClick={() => {
+                          setIsEditing(false);
+                          setEditForm({
+                            full_name: selectedTeacher.full_name,
+                            salary: selectedTeacher.salary || 0,
+                            username: '',
+                            password: '',
+                            joined_at: selectedTeacher.joined_at ? selectedTeacher.joined_at.split('T')[0] : ''
+                          });
+                        }}
+                        className="w-full py-4 bg-white/5 text-white/40 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-white/10 transition-all"
+                      >
+                        Discard
+                      </button>
+                    </>
                   ) : (
-                    <p className="text-sm font-black text-slate-900">
-                      {selectedTeacher.joined_at 
-                        ? new Date(selectedTeacher.joined_at).toLocaleDateString('en-PK', { day: '2-digit', month: 'long', year: 'numeric' })
-                        : 'Institutional Entry Record Missing'}
-                    </p>
+                    <>
+                      <button
+                        onClick={() => setIsEditing(true)}
+                        className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-700 transition-all flex items-center justify-center gap-3 shadow-xl shadow-indigo-500/20"
+                      >
+                        <Edit3 className="h-4 w-4" /> Modify Profile
+                      </button>
+                      <button
+                        onClick={() => handleDeleteTeacher(selectedTeacher.id)}
+                        className="w-full py-4 bg-red-600/10 text-red-400 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-red-600/20 transition-all flex items-center justify-center gap-3"
+                      >
+                        <Trash2 className="h-4 w-4" /> Remove Faculty
+                      </button>
+                    </>
                   )}
                 </div>
               </div>
 
-              {/* Assignments Hub */}
-              <div>
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-3">
-                    <BookOpen className="h-5 w-5 text-slate-400" />
-                    <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">Active Curriculum</h3>
+              {/* Main Content Area */}
+              <div className="flex-1 overflow-y-auto p-8 lg:p-12 space-y-8 bg-white custom-scrollbar">
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-slate-50 rounded-3xl p-6 border border-slate-100 transition-all hover:bg-slate-100/50">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block flex items-center gap-2">
+                      <DollarSign className="h-3 w-3" /> Monthly Stipend (PKR)
+                    </label>
+                    {isEditing ? (
+                      <input
+                        type="number"
+                        value={editForm.salary}
+                        onChange={(e) => setEditForm({ ...editForm, salary: parseFloat(e.target.value) || 0 })}
+                        className="w-full p-4 bg-white border border-slate-200 rounded-[1.25rem] outline-none font-black text-slate-900 focus:ring-4 focus:ring-indigo-500/5 transition-all"
+                      />
+                    ) : (
+                      <p className="text-xl font-black text-slate-900 tracking-tight">PKR {(selectedTeacher.salary || 0).toLocaleString()}</p>
+                    )}
                   </div>
-                  <button 
-                    onClick={() => {
-                      setAssignForm({ subject_id: '', class_id: '' });
-                      setIsAssignModalOpen(true);
-                    }}
-                    className="px-4 py-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-[1rem] text-[10px] font-black uppercase tracking-widest border border-emerald-100 transition-all"
-                  >
-                    Add Assignment
-                  </button>
+
+                  <div className="bg-slate-50 rounded-3xl p-6 border border-slate-100 flex flex-col justify-center transition-all hover:bg-slate-100/50">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block flex items-center gap-2">
+                      <Calendar className="h-3 w-3" /> Tenure Since
+                    </label>
+                    {isEditing ? (
+                      <input
+                        type="date"
+                        value={editForm.joined_at}
+                        onChange={(e) => setEditForm({ ...editForm, joined_at: e.target.value })}
+                        className="w-full p-4 bg-white border border-slate-200 rounded-[1.25rem] outline-none font-black text-slate-900 focus:ring-4 focus:ring-indigo-500/5 transition-all"
+                      />
+                    ) : (
+                      <p className="text-sm font-black text-slate-900">
+                        {selectedTeacher.joined_at
+                          ? new Date(selectedTeacher.joined_at).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })
+                          : 'Institutional entry record missing'}
+                      </p>
+                    )}
+                  </div>
                 </div>
 
-                {(selectedTeacher.teacher_assignments || []).length === 0 ? (
-                  <div className="rounded-[2.5rem] border-2 border-dashed border-slate-100 p-12 text-center group transition-colors">
-                    <GraduationCap className="h-10 w-10 mx-auto mb-4 text-slate-200 group-hover:text-emerald-300 transition-colors" />
-                    <p className="text-[10px] text-slate-300 font-black uppercase tracking-widest">No Subjects Found</p>
+                {/* Identity Hub */}
+                <div className="bg-slate-50 rounded-[2.5rem] p-8 border border-slate-100">
+                  <h3 className="text-sm font-black text-slate-900 mb-6 flex items-center gap-2">
+                    <ShieldCheck className="h-4 w-4" /> Academic Portal Security
+                  </h3>
+                  {isEditing ? (
+                    <div className="space-y-4">
+                      {!selectedTeacher.profile_id && (
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block ml-2">Public Username</label>
+                          <input
+                            type="text"
+                            value={editForm.username}
+                            onChange={(e) => setEditForm({ ...editForm, username: e.target.value.toLowerCase().replace(/\s+/g, '') })}
+                            placeholder="e.g. professor.ali"
+                            required
+                            className="w-full bg-white border border-slate-200 rounded-2xl p-5 outline-none focus:ring-4 focus:ring-indigo-500/5 font-black text-slate-900"
+                          />
+                        </div>
+                      )}
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block ml-2">Secure Passkey</label>
+                        <input
+                          type="text"
+                          value={editForm.password}
+                          onChange={(e) => setEditForm({ ...editForm, password: e.target.value })}
+                          placeholder={selectedTeacher.profile_id ? "Leave blank to keep existing password" : "Set Initial Password"}
+                          required={!selectedTeacher.profile_id}
+                          className="w-full bg-white border border-slate-200 rounded-2xl p-5 outline-none focus:ring-4 focus:ring-indigo-500/5 font-black text-slate-900"
+                        />
+                        <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-1 ml-2">* Passwords must be at least 8 characters with institutional symbols.</p>
+                      </div>
+                    </div>
+                  ) : selectedTeacher.profile_id ? (
+                    <div className="flex items-center justify-between bg-white/60 p-6 rounded-3xl border border-white">
+                      <div className="flex items-center gap-4">
+                        <div className="h-10 w-10 bg-emerald-100 rounded-xl flex items-center justify-center text-emerald-600">
+                          <CheckCircle2 className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Faculty Identity ACTIVE</p>
+                          <p className="text-sm font-black text-slate-900">Digital Access Token Verified</p>
+                        </div>
+                      </div>
+                      <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                    </div>
+                  ) : (
+                    <div className="bg-amber-50 p-6 rounded-3xl border border-amber-100 border-dashed">
+                      <p className="text-[11px] text-amber-800 font-bold leading-relaxed italic text-center">
+                        "This faculty member currently lacks a digital ID. Initialize their profile to enable curriculum management and digital attendance."
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Assignments Section */}
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
+                      <BookOpen className="h-4 w-4" /> Academic Domain load
+                    </h3>
+                    {!isEditing && (
+                      <button
+                        onClick={() => {
+                          setAssignForm({ subject_id: '', class_id: '' });
+                          setIsAssignModalOpen(true);
+                        }}
+                        className="px-4 py-2 bg-indigo-50 border border-indigo-100 text-indigo-600 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all shadow-sm"
+                      >
+                        New Assignment
+                      </button>
+                    )}
                   </div>
-                ) : (
-                  <div className="space-y-3">
-                    {(selectedTeacher.teacher_assignments || []).map((a: any) => (
-                      <div key={a.id} className="bg-white border border-slate-100 rounded-2xl p-5 flex items-center justify-between group hover:border-emerald-200 transition-all hover:shadow-lg hover:shadow-emerald-500/5">
-                        <div className="flex items-center gap-4">
-                           <div className="h-10 w-10 bg-slate-50 rounded-xl flex items-center justify-center font-black text-xs text-slate-400 group-hover:bg-emerald-50 group-hover:text-emerald-600 transition-colors">
-                              {a.subject?.name?.[0]}
-                           </div>
-                           <div>
-                            <p className="text-sm font-black text-slate-900 mb-0.5">{a.subject?.name || 'Technical Elective'}</p>
-                            <p className="text-[10px] font-bold text-slate-400 tracking-widest uppercase">
-                              {a.class ? `Class ${a.class.grade}-${a.class.section}` : 'N/A'}
-                            </p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {teacherAssignments.length === 0 ? (
+                      <div className="col-span-full py-12 text-center bg-slate-50 rounded-[2.5rem] border-2 border-dashed border-slate-100">
+                        <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">No Active Course load Detected</p>
+                      </div>
+                    ) : (
+                      teacherAssignments.map((assignment) => (
+                        <div key={assignment.id} className="bg-white border border-slate-100 rounded-[2rem] p-6 hover:shadow-xl hover:shadow-slate-200/50 transition-all group relative overflow-hidden">
+                          <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={() => handleRemoveAssignment(assignment.id)}
+                              className="p-2 bg-rose-50 text-rose-500 rounded-lg hover:bg-rose-500 hover:text-white transition-all"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                          <div className="flex flex-col gap-4">
+                            <div className="flex items-center gap-4">
+                              <div className="h-10 w-10 bg-slate-900 rounded-xl flex items-center justify-center text-white font-black text-xs uppercase">
+                                {assignment.subject?.name?.[0]}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-sm font-black text-slate-900 tracking-tight truncate">{assignment.subject?.name}</p>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{assignment.class ? `Grade ${assignment.class.grade} · ${assignment.class.section}` : 'N/A'}</p>
+                              </div>
+                            </div>
+                            <div className="flex gap-2">
+                              <span className="px-2 py-1 bg-slate-50 rounded-md text-[8px] font-black text-slate-500 uppercase tracking-widest">Academy Hub</span>
+                              <span className="px-2 py-1 bg-slate-50 rounded-md text-[8px] font-black text-slate-500 uppercase tracking-widest">{assignment.subject?.code || 'GEN-01'}</span>
+                            </div>
                           </div>
                         </div>
-                        <button 
-                          onClick={() => handleRemoveAssignment(a.id)}
-                          className="p-3 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl opacity-0 group-hover:opacity-100 transition-all"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    ))}
+                      ))
+                    )}
                   </div>
-                )}
+                </div>
               </div>
             </div>
           </div>
         )}
       </div>
 
-      {/* ==================== PREMIUM OVERLAYS ==================== */}
+      {/* ==================== PREMIUM OVERLAYS ==================== */ }
 
-      {/* Hire Modal */}
-      {isHireModalOpen && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md" onClick={() => setIsHireModalOpen(false)} />
-          <div className="relative bg-white rounded-[3rem] w-full max-w-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col md:flex-row">
+      {/* Hire Modal */ }
+      {
+        isHireModalOpen && (
+          <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
+            <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md" onClick={() => setIsHireModalOpen(false)} />
+            <div className="relative bg-white rounded-[3rem] w-full max-w-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col md:flex-row">
               {/* Sidebar Info */}
               <div className="md:w-56 bg-slate-900 p-10 text-white flex flex-col justify-between border-r border-white/5">
                 <div className="h-14 w-14 bg-emerald-600 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/30">
@@ -517,46 +568,69 @@ export const TeacherConsole: React.FC = () => {
                   <p className="text-white/40 text-[10px] font-bold uppercase tracking-[0.2em]">New Faculty Onboarding</p>
                 </div>
               </div>
-              
+
               {/* Form Content */}
               <form onSubmit={handleHire} className="flex-1 p-8 md:p-12 space-y-8">
                 <div className="flex justify-between items-center mb-2">
-                   <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Authentication & Payroll</h3>
-                   <button type="button" onClick={() => setIsHireModalOpen(false)} className="p-2 hover:bg-slate-50 rounded-lg">
-                      <X className="h-5 w-5 text-slate-300" />
-                   </button>
+                  <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Authentication & Payroll</h3>
+                  <button type="button" onClick={() => setIsHireModalOpen(false)} className="p-2 hover:bg-slate-50 rounded-lg">
+                    <X className="h-5 w-5 text-slate-300" />
+                  </button>
                 </div>
 
                 <div className="space-y-6">
                   <div>
                     <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">Legal Full Name</label>
-                    <input 
+                    <input
                       required
                       value={hireForm.full_name}
-                      onChange={(e) => setHireForm({...hireForm, full_name: e.target.value})}
-                      className="w-full p-5 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:bg-white focus:ring-4 focus:ring-emerald-500/5 transition-all font-black text-slate-900" 
-                      placeholder="e.g. Professor Ali" 
+                      onChange={(e) => setHireForm({ ...hireForm, full_name: e.target.value })}
+                      className="w-full p-5 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:bg-white focus:ring-4 focus:ring-emerald-500/5 transition-all font-black text-slate-900"
+                      placeholder="e.g. Professor Ali"
                     />
                   </div>
-                  
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">Portal Username</label>
+                      <input
+                        required
+                        value={hireForm.username}
+                        onChange={(e) => setHireForm({ ...hireForm, username: e.target.value.toLowerCase().replace(/\s+/g, '') })}
+                        className="w-full p-5 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:bg-white focus:ring-4 focus:ring-emerald-500/5 transition-all font-black text-slate-900"
+                        placeholder="e.g. p.ali"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">Initial Password</label>
+                      <input
+                        required
+                        value={hireForm.password}
+                        onChange={(e) => setHireForm({ ...hireForm, password: e.target.value })}
+                        className="w-full p-5 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:bg-white focus:ring-4 focus:ring-emerald-500/5 transition-all font-black text-slate-900"
+                        placeholder="e.g. Teacher123!"
+                      />
+                    </div>
+                  </div>
+
                   <div>
                     <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">Agreed Salary (Monthly)</label>
                     <div className="relative">
                       <span className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 text-xs font-black">PKR</span>
-                      <input 
+                      <input
                         type="number"
                         required
                         value={hireForm.salary}
-                        onChange={(e) => setHireForm({...hireForm, salary: parseFloat(e.target.value) || 0})}
-                        className="w-full pl-16 pr-5 py-5 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:bg-white focus:ring-4 focus:ring-emerald-500/5 transition-all font-black text-slate-900" 
-                        placeholder="0" 
+                        onChange={(e) => setHireForm({ ...hireForm, salary: parseFloat(e.target.value) || 0 })}
+                        className="w-full pl-16 pr-5 py-5 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:bg-white focus:ring-4 focus:ring-emerald-500/5 transition-all font-black text-slate-900"
+                        placeholder="0"
                       />
                     </div>
                   </div>
                 </div>
 
                 <div className="pt-2">
-                   <button 
+                  <button
                     type="submit"
                     disabled={loading}
                     className="w-full py-6 bg-emerald-600 text-white font-black rounded-[2rem] shadow-2xl shadow-emerald-500/20 active:scale-[0.98] transition-all disabled:opacity-50 hover:bg-emerald-700"
@@ -565,74 +639,85 @@ export const TeacherConsole: React.FC = () => {
                   </button>
                 </div>
               </form>
-          </div>
-        </div>
-      )}
-
-      {/* Assignment Modal (Similar structure) */}
-      {isAssignModalOpen && selectedTeacher && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md" onClick={() => setIsAssignModalOpen(false)} />
-          <div className="relative bg-white rounded-[3rem] w-full max-w-md shadow-2xl p-10 md:p-12 animate-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-start mb-10">
-              <div className="flex gap-4">
-                 <div className="h-14 w-14 bg-indigo-50 border border-indigo-100 rounded-2xl flex items-center justify-center text-indigo-600">
-                   <BookOpen className="h-7 w-7" />
-                 </div>
-                 <div>
-                   <h2 className="text-2xl font-black text-slate-900 leading-none mb-1">Curriculum</h2>
-                   <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none">Assigning to {selectedTeacher.full_name}</p>
-                 </div>
-              </div>
-              <button onClick={() => setIsAssignModalOpen(false)} className="p-3 hover:bg-slate-50 rounded-xl">
-                <X className="h-5 w-5 text-slate-300" />
-              </button>
             </div>
+          </div>
+        )
+      }
 
-            <form onSubmit={handleAddAssignment} className="space-y-6">
-              <div>
-                <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">Domain Specialization</label>
-                <div className="relative group">
-                  <select 
-                    required
-                    value={assignForm.subject_id}
-                    onChange={(e) => setAssignForm({...assignForm, subject_id: e.target.value})}
-                    className="w-full p-5 bg-slate-50 border border-slate-100 rounded-2xl outline-none appearance-none font-black text-slate-900"
-                  >
-                    <option value="">Select Subject</option>
-                    {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                  </select>
-                  <ChevronRight className="absolute right-5 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-300 pointer-events-none rotate-90" />
+      {/* Assignment Modal */ }
+      {
+        isAssignModalOpen && selectedTeacher && (
+          <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
+            <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md" onClick={() => setIsAssignModalOpen(false)} />
+            <div className="relative bg-white rounded-[3rem] w-full max-w-md shadow-2xl p-10 md:p-12 animate-in zoom-in-95 duration-200">
+              <div className="flex justify-between items-start mb-10">
+                <div className="flex gap-4">
+                  <div className="h-14 w-14 bg-indigo-50 border border-indigo-100 rounded-2xl flex items-center justify-center text-indigo-600">
+                    <BookOpen className="h-7 w-7" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-black text-slate-900 leading-none mb-1">Curriculum</h2>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none">Assigning to {selectedTeacher.full_name}</p>
+                  </div>
                 </div>
-              </div>
-              <div>
-                <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">Target Academy Grade</label>
-                <div className="relative group">
-                  <select 
-                    required
-                    value={assignForm.class_id}
-                    onChange={(e) => setAssignForm({...assignForm, class_id: e.target.value})}
-                    className="w-full p-5 bg-slate-50 border border-slate-100 rounded-2xl outline-none appearance-none font-black text-slate-900"
-                  >
-                    <option value="">Select Class</option>
-                    {classes.map(c => <option key={c.id} value={c.id}>Grade {c.grade} - {c.section}</option>)}
-                  </select>
-                  <ChevronRight className="absolute right-5 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-300 pointer-events-none rotate-90" />
-                </div>
-              </div>
-
-              <div className="pt-4">
-                <button 
-                  type="submit"
-                  className="w-full py-6 bg-slate-900 text-white font-black rounded-[2rem] shadow-xl hover:bg-emerald-600 hover:scale-[1.02] active:scale-[0.98] transition-all"
-                >
-                  Verify & Commit Assignment
+                <button onClick={() => setIsAssignModalOpen(false)} className="p-3 hover:bg-slate-50 rounded-xl">
+                  <X className="h-5 w-5 text-slate-300" />
                 </button>
               </div>
-            </form>
+
+              <form onSubmit={handleAddAssignment} className="space-y-6">
+                <div>
+                  <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">Target Academy Grade (Select First)</label>
+                  <div className="relative group">
+                    <select
+                      required
+                      value={assignForm.class_id}
+                      onChange={(e) => setAssignForm({ subject_id: '', class_id: e.target.value })}
+                      className="w-full p-5 bg-slate-50 border border-slate-100 rounded-2xl outline-none appearance-none font-black text-slate-900"
+                    >
+                      <option value="">Select Class / Grade</option>
+                      {classes.map(c => <option key={c.id} value={c.id}>Grade {c.grade} - {c.section}</option>)}
+                    </select>
+                    <ChevronRight className="absolute right-5 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-300 pointer-events-none rotate-90" />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">Domain Specialization</label>
+                  <div className="relative group">
+                    <select
+                      required
+                      disabled={!assignForm.class_id}
+                      value={assignForm.subject_id}
+                      onChange={(e) => setAssignForm({ ...assignForm, subject_id: e.target.value })}
+                      className="w-full p-5 bg-slate-50 border border-slate-100 rounded-2xl outline-none appearance-none font-black text-slate-900 disabled:opacity-50"
+                    >
+                      <option value="">{assignForm.class_id ? "Select Subject" : "Select a Class first"}</option>
+                      {assignForm.class_id && subjects
+                        .filter(s => {
+                          const cls = classes.find(c => c.id === assignForm.class_id);
+                          return cls && s.grade_level?.toString() === cls.grade.toString();
+                        })
+                        .map(s => <option key={s.id} value={s.id}>{s.name} (Grade {s.grade_level})</option>)
+                      }
+                    </select>
+                    <ChevronRight className="absolute right-5 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-300 pointer-events-none rotate-90" />
+                  </div>
+                </div>
+
+                <div className="pt-4">
+                  <button
+                    type="submit"
+                    className="w-full py-6 bg-slate-900 text-white font-black rounded-[2rem] shadow-xl hover:bg-emerald-600 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                  >
+                    Verify & Commit Assignment
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
-      )}
+        )
+      }
     </div>
   );
 };
