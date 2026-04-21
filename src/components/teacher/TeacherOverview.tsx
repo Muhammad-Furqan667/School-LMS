@@ -28,6 +28,8 @@ interface TeacherOverviewProps {
   setActiveStudentForMarks: (val: any) => void;
   setIsMarksModalOpen: (val: boolean) => void;
   history: any[];
+  tasks?: any[];
+  onUpdateTaskStatus?: (id: string, status: 'pending' | 'completed') => Promise<void>;
 }
 
 export const TeacherOverview: React.FC<TeacherOverviewProps> = ({
@@ -44,7 +46,9 @@ export const TeacherOverview: React.FC<TeacherOverviewProps> = ({
   results,
   setActiveStudentForMarks,
   setIsMarksModalOpen,
-  history
+  history,
+  tasks,
+  onUpdateTaskStatus
 }) => {
   const navigate = useNavigate();
 
@@ -109,6 +113,40 @@ export const TeacherOverview: React.FC<TeacherOverviewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Phase 5: Administrative Directives (Tasks) */}
+      {tasks && tasks.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in slide-in-from-top-4 duration-700">
+          {tasks.map(task => (
+            <div key={task.id} className="group relative bg-white border-2 border-amber-100 rounded-[2.5rem] p-8 shadow-sm hover:shadow-xl transition-all">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-2 px-3 py-1 bg-amber-50 rounded-full text-amber-600 border border-amber-100">
+                  <Target className="h-3 w-3" />
+                  <span className="text-[10px] font-black uppercase tracking-widest leading-none">Admin Directive</span>
+                </div>
+                <div className={`h-2 w-2 rounded-full ${task.status === 'completed' ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`} />
+              </div>
+              <h3 className="text-lg font-black text-slate-900 leading-tight tracking-tight mb-4">{task.task_description}</h3>
+              <div className="flex items-center justify-between mt-8 pt-6 border-t border-slate-50">
+                <div className="flex items-center gap-2">
+                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Target: {new Date(task.target_date).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}</p>
+                </div>
+                {task.status === 'pending' && onUpdateTaskStatus && (
+                   <button 
+                     onClick={() => onUpdateTaskStatus(task.id, 'completed')}
+                     className="px-4 py-2 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-emerald-600 transition-all active:scale-95 shadow-lg"
+                   >
+                     Mark Done
+                   </button>
+                )}
+              </div>
+              <div className="absolute top-0 right-0 p-8 opacity-[0.03] group-hover:opacity-[0.07] transition-opacity pointer-events-none">
+                <Plus className="h-24 w-24 text-amber-900" />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Main Grid: Diary Form vs Weekly Timetable */}
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">

@@ -25,6 +25,7 @@ const TeacherDashboard: React.FC = () => {
   const [teacherData, setTeacherData] = useState<any>(null);
   const [profileData, setProfileData] = useState<any>(null);
   const [teacherTimetable, setTeacherTimetable] = useState<any[]>([]);
+  const [tasks, setTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Subscribe to real-time events (Admin OTAs)
@@ -42,21 +43,26 @@ const TeacherDashboard: React.FC = () => {
   const fetchData = async () => {
     try {
       const customUserId = localStorage.getItem('custom_user_id');
-      if (!customUserId) return;
+      if (!customUserId) {
+        setLoading(false);
+        return;
+      }
 
       const teacher = await SchoolService.getTeacherData(customUserId);
       const profile = await SchoolService.getProfile(customUserId);
       setTeacherData(teacher);
       setProfileData(profile);
 
-      const [assignData, statsData, tTimetable] = await Promise.all([
+      const [assignData, statsData, tTimetable, taskData] = await Promise.all([
         SchoolService.getTeacherAssignments(teacher.id),
         SchoolService.getTeacherStats(customUserId),
-        SchoolService.getTeacherTimetable(teacher.id)
+        SchoolService.getTeacherTimetable(teacher.id),
+        SchoolService.getTeacherTasks(undefined, teacher.id)
       ]);
       setAssignments(assignData);
       setTeacherStats(statsData);
       setTeacherTimetable(tTimetable);
+      setTasks(taskData);
 
       if (assignData.length > 0) {
         setSelectedAssignment(assignData[0].id);
@@ -135,9 +141,19 @@ const TeacherDashboard: React.FC = () => {
             setActiveStudentForMarks={setActiveStudentForMarks}
             setIsMarksModalOpen={setIsMarksModalOpen}
             history={history}
+            tasks={tasks}
+            onUpdateTaskStatus={async (id, status) => {
+              try {
+                await (SchoolService as any).updateTaskStatus(id, status);
+                setTasks(prev => prev.map(t => t.id === id ? { ...t, status } : t));
+                toast.success('Task objective complete');
+              } catch {
+                toast.error('Failed to update task status');
+              }
+            }}
           />
         } />
-        <Route path="/attendance" element={
+        <Route path="attendance" element={
           <AttendanceBox 
             students={students} 
             onSave={async (attendanceData) => {
@@ -160,8 +176,8 @@ const TeacherDashboard: React.FC = () => {
             }} 
           />
         } />
-        <Route path="/salary" element={<SalaryRecord teacher={teacherData} />} />
-        <Route path="/profile" element={<TeacherProfile teacher={teacherData} profile={profileData} />} />
+        <Route path="salary" element={<SalaryRecord teacher={teacherData} />} />
+        <Route path="profile" element={<TeacherProfile teacher={teacherData} profile={profileData} />} />
         {/* Fallback to Overview for unknown sub-routes */}
         <Route path="*" element={
           <TeacherOverview 
@@ -179,6 +195,16 @@ const TeacherDashboard: React.FC = () => {
             setActiveStudentForMarks={setActiveStudentForMarks}
             setIsMarksModalOpen={setIsMarksModalOpen}
             history={history}
+            tasks={tasks}
+            onUpdateTaskStatus={async (id, status) => {
+              try {
+                await (SchoolService as any).updateTaskStatus(id, status);
+                setTasks(prev => prev.map(t => t.id === id ? { ...t, status } : t));
+                toast.success('Task objective complete');
+              } catch {
+                toast.error('Failed to update task status');
+              }
+            }}
           />
         } />
       </Routes>

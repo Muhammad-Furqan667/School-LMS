@@ -251,6 +251,19 @@ export class SchoolService {
     if (error) throw error;
     return data;
   }
+  static async getAllTeacherAssignments() {
+    const { data, error } = await supabase
+      .from('teacher_assignments')
+      .select(`
+        *,
+        class:classes(*),
+        subject:subjects(*),
+        teacher:teachers(*)
+      `)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data;
+  }
 
   /**
    * Creates a new diary entry.
@@ -757,30 +770,35 @@ export class SchoolService {
   }
 
   static async getTeacherStats(profileId: string) {
-    const { data: teacher } = await supabase
-      .from('teachers')
-      .select('id')
-      .eq('profile_id', profileId)
-      .single();
+    try {
+      const { data: teacher } = await supabase
+        .from('teachers')
+        .select('id')
+        .eq('profile_id', profileId)
+        .single();
 
-    if (!teacher) throw new Error('Teacher record not found');
+      if (!teacher) return { revenue: 0, totalStudents: 0, subjectsCount: 0 };
 
-    const { data: stats, error } = await (supabase as any)
-      .from('enrollments')
-      .select('price_at_enrollment, payment_status, subjects!inner(*)')
-      .eq('subjects.teacher_id', teacher.id);
+      const { data: stats, error } = await (supabase as any)
+        .from('enrollments')
+        .select('price_at_enrollment, payment_status, subjects!inner(*)')
+        .eq('subjects.teacher_id', teacher.id);
 
-    if (error) throw error;
+      if (error || !stats) return { revenue: 0, totalStudents: 0, subjectsCount: 0 };
 
-    const revenue = stats
-      .filter((s: any) => s.payment_status === 'paid')
-      .reduce((sum: number, s: any) => sum + Number(s.price_at_enrollment), 0);
+      const revenue = stats
+        .filter((s: any) => s.payment_status === 'paid')
+        .reduce((sum: number, s: any) => sum + Number(s.price_at_enrollment), 0);
 
-    return {
-      revenue,
-      totalStudents: stats.length,
-      subjectsCount: stats.length > 0 ? [...new Set(stats.map((s: any) => s.subjects.id))].length : 0
-    };
+      return {
+        revenue,
+        totalStudents: stats.length,
+        subjectsCount: stats.length > 0 ? [...new Set(stats.map((s: any) => s.subjects.id))].length : 0
+      };
+    } catch (e) {
+      console.warn('Teacher stats calculation fallback:', e);
+      return { revenue: 0, totalStudents: 0, subjectsCount: 0 };
+    }
   }
 
   /**
@@ -1021,5 +1039,73 @@ export class SchoolService {
 
     if (error) throw error;
     return data;
+  }
+
+  /**
+   * TEACHER TASKS (ADMIN DIRECTIVES)
+   */
+
+  static async createTeacherTask(task: {
+    assignment_id: string;
+    task_description: string;
+    target_date: string;
+  }) {
+    const adminId = localStorage.getItem('custom_user_id');
+    if (!adminId) throw new Error('Not authenticated');
+
+    const { data, error } = await (supabase as any)
+      .from('teacher_tasks')
+      .insert({
+        ...task,
+        admin_id: adminId
+      })
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return data;
+  }
+
+  static async getTeacherTasks(assignmentId?: string, teacherId?: string) {
+    let query = (supabase as any).from('teacher_tasks').select(`
+      *,
+      admin:admin_id(username),
+      assignment:teacher_assignments(
+        id,
+        class:classes(grade, section),
+        subject:subjects(name),
+        teacher:teachers(full_name)
+      )
+    `);
+
+    if (assignmentId) {
+      query = query.eq('assignment_id', assignmentId);
+    } else if (teacherId) {
+      query = query.eq('assignment.teacher_id', teacherId);
+    }
+
+    const { data, error } = await query.order('target_date', { ascending: true });
+    if (error) throw error;
+    return data;
+  }
+
+  static async updateTaskStatus(taskId: string, status: 'pending' | 'completed') {
+    const { data, error } = await (supabase as any)
+      .from('teacher_tasks')
+      .update({ status })
+      .eq('id', taskId)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return data;
+  }
+
+  static async deleteTask(taskId: string) {
+    const { error } = await (supabase as any)
+      .from('teacher_tasks')
+      .delete()
+      .eq('id', taskId);
+    if (error) throw error;
   }
 }

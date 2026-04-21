@@ -4,7 +4,7 @@ import Login from './pages/Login';
 import Layout from './components/Layout';
 import { SchoolService } from './services/schoolService';
 import { useEffect, useState } from 'react';
-import { supabase } from './lib/supabase';
+
 import type { Tables } from './types/database';
 
 import { AdminLayout } from './pages/admin/AdminLayout';
