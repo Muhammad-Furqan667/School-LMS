@@ -3,7 +3,7 @@ import { CreditCard, X, Receipt, Calculator } from 'lucide-react';
 
 interface ParentFeesViewProps {
   fees: any[];
-  parentName: string;
+  parentName?: string;
 }
 
 export const ParentFeesView: React.FC<ParentFeesViewProps> = ({ fees, parentName }) => {
@@ -16,7 +16,7 @@ export const ParentFeesView: React.FC<ParentFeesViewProps> = ({ fees, parentName
           <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight leading-none">
              Financial Ledger
           </h1>
-          <p className="text-slate-500 font-medium mt-1">Verified Identity: {parentName}</p>
+          <p className="text-slate-500 font-medium mt-1">Verified Identity: {parentName || 'Parent'}</p>
         </div>
       </div>
 

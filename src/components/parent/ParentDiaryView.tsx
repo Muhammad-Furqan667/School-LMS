@@ -3,17 +3,18 @@ import { BookOpen } from 'lucide-react';
 
 interface ParentDiaryViewProps {
   diary: any[];
-  parentName: string;
+  childName?: string;
+  parentName?: string;
 }
 
-export const ParentDiaryView: React.FC<ParentDiaryViewProps> = ({ diary, parentName }) => (
+export const ParentDiaryView: React.FC<ParentDiaryViewProps> = ({ diary, childName, parentName }) => (
   <div className="space-y-8 animate-in fade-in duration-500">
     <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
       <div>
         <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight leading-none">
-           Classroom Diary
+           {childName ? `${childName}'s Diary` : 'Classroom Diary'}
         </h1>
-        <p className="text-slate-500 font-medium mt-1">Verified Identity: {parentName}</p>
+        <p className="text-slate-500 font-medium mt-1">Verified Identity: {parentName || 'Parent'}</p>
       </div>
     </div>
     
