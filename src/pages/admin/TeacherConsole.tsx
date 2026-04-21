@@ -13,7 +13,6 @@ import {
   ChevronRight,
   ShieldCheck,
   CheckCircle2,
-  CheckCircle,
 } from 'lucide-react';
 import { SchoolService } from '../../services/schoolService';
 import { toast } from 'sonner';
@@ -40,7 +39,6 @@ export const TeacherConsole: React.FC = () => {
     password: '',
     joined_at: ''
   });
-  const [activeTab, setActiveTab] = useState<'profile' | 'curriculum'>('profile');
 
   // Hire form
   const [hireForm, setHireForm] = useState({

@@ -27,7 +27,7 @@ export const AcademicHub: React.FC<AcademicHubProps> = ({ results, attendanceSta
               <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">Assessment Average</p>
               <h3 className="text-4xl font-black text-slate-900">
                  {results.length > 0 
-                    ? Math.round(results.reduce((acc, r) => acc + (r.marks_obtained / r.total_marks * 100), 0) / results.length)
+                    ? Math.round(results.reduce((acc, r) => acc + ((r.marks_obtained || 0) / (r.total_marks || 100) * 100), 0) / results.length)
                     : 0}%
               </h3>
            </div>
@@ -82,8 +82,8 @@ export const AcademicHub: React.FC<AcademicHubProps> = ({ results, attendanceSta
                           </td>
                           <td className="px-8 py-6 font-bold text-slate-400 text-sm whitespace-nowrap">{res.total_marks}</td>
                           <td className="px-8 py-6 text-right">
-                             <span className={`text-sm font-black ${res.marks_obtained / res.total_marks < 0.4 ? 'text-red-500' : 'text-emerald-600'}`}>
-                                {res.marks_obtained}
+                             <span className={`text-sm font-black ${(res.marks_obtained || 0) / (res.total_marks || 1) < 0.4 ? 'text-red-500' : 'text-emerald-600'}`}>
+                                {res.marks_obtained || 0}
                              </span>
                           </td>
                        </tr>

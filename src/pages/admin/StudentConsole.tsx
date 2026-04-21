@@ -56,10 +56,12 @@ export const StudentConsole: React.FC = () => {
   const [feeForm, setFeeForm] = useState({
     id: undefined as string | undefined,
     month: 'January',
-    amount_due: '1200',
     amount_paid: '0',
-    status: 'Unpaid'
+    status: 'Unpaid',
+    items: [{ category: 'Monthly Fee', amount: 1200 }]
   });
+
+  const totalFeeAmount = feeForm.items.reduce((acc, item) => acc + (parseFloat(item.amount.toString()) || 0), 0);
 
   useEffect(() => {
     fetchAll();
@@ -289,9 +291,10 @@ export const StudentConsole: React.FC = () => {
         id: feeForm.id,
         student_id: selectedStudent.id,
         month: feeForm.month,
-        amount_due: parseFloat(feeForm.amount_due),
+        amount_due: totalFeeAmount,
         amount_paid: parseFloat(feeForm.amount_paid),
         status: feeForm.status,
+        breakdown: feeForm.items,
         year_id: years?.id
       });
       toast.success(feeForm.id ? 'Fee record updated' : 'Fee record saved');
@@ -479,7 +482,7 @@ export const StudentConsole: React.FC = () => {
 
                 <div className="flex flex-col items-center text-center mt-6">
                   <div className="h-24 w-24 bg-white/10 rounded-[2.5rem] border border-white/10 flex items-center justify-center font-black text-4xl mb-6 backdrop-blur-xl shadow-2xl">
-                    {selectedStudent.name[0]}
+                    {selectedStudent?.name?.[0] || '?'}
                   </div>
 
                   <h2 className="text-2xl font-black tracking-tight">{selectedStudent.name}</h2>
@@ -614,7 +617,7 @@ export const StudentConsole: React.FC = () => {
                         <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">Recent Ledger</h3>
                         <button
                           onClick={() => {
-                            setFeeForm({ id: undefined, month: 'January', amount_due: '1200', amount_paid: '0', status: 'Unpaid' });
+                            setFeeForm({ id: undefined, month: 'January', amount_paid: '0', status: 'Unpaid', items: [{ category: 'Monthly Fee', amount: 1200 }] });
                             setIsFeeModalOpen(true);
                           }}
                           className="px-4 py-2 bg-slate-50 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 border border-slate-100 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
@@ -640,15 +643,15 @@ export const StudentConsole: React.FC = () => {
                             <div 
                               key={fee.id} 
                               onClick={() => {
-                                setFeeForm({
-                                  id: fee.id,
-                                  month: fee.month,
-                                  amount_due: fee.amount_due.toString(),
-                                  amount_paid: fee.amount_paid.toString(),
-                                  status: fee.status || 'Unpaid'
-                                });
-                                setIsFeeModalOpen(true);
-                              }}
+                                  setFeeForm({
+                                    id: fee.id,
+                                    month: fee.month,
+                                    amount_paid: fee.amount_paid.toString(),
+                                    status: fee.status || 'Unpaid',
+                                    items: fee.breakdown && fee.breakdown.length > 0 ? fee.breakdown : [{ category: 'Monthly Fee', amount: Number(fee.amount_due) }]
+                                  });
+                                  setIsFeeModalOpen(true);
+                                }}
                               className="bg-white border border-slate-100 rounded-2xl p-5 flex items-center justify-between group hover:border-emerald-200 hover:shadow-lg hover:shadow-emerald-500/5 transition-all cursor-pointer"
                             >
                               <div>
@@ -730,7 +733,7 @@ export const StudentConsole: React.FC = () => {
                         </div>
 
                         <div className="space-y-6">
-                          {(academicResults as any).past.map((session: any) => {
+                          {(academicResults as any).past?.map((session: any) => {
                             const percentage = session.totalMarks > 0 ? Math.round((session.obtainedMarks / session.totalMarks) * 100) : 0;
                             return (
                               <div key={session.label} className="bg-slate-50/50 rounded-[2.5rem] border border-slate-100 overflow-hidden">
@@ -749,7 +752,7 @@ export const StudentConsole: React.FC = () => {
                                 {/* Subject List */}
                                 <div className="p-6 space-y-4">
                                   <div className="grid grid-cols-1 gap-3">
-                                    {session.results.map((r: any) => (
+                                    {session.results?.map((r: any) => (
                                       <div key={r.id} className="flex items-center justify-between p-4 bg-white/50 rounded-2xl border border-slate-100 group hover:border-indigo-200 transition-all">
                                         <div className="flex items-center gap-3">
                                           <div className={`h-8 w-8 rounded-lg flex items-center justify-center text-[10px] font-black border ${r.status === 'pass' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-100'}`}>
@@ -963,17 +966,57 @@ export const StudentConsole: React.FC = () => {
                   {months.map(m => <option key={m}>{m}</option>)}
                 </select>
               </div>
+              <div className="space-y-4 max-h-[250px] overflow-y-auto p-2 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+                <div className="flex justify-between items-center mb-2 px-2">
+                  <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Bill Breakdown</label>
+                  <button 
+                    type="button" 
+                    onClick={() => setFeeForm({ ...feeForm, items: [...feeForm.items, { category: '', amount: 0 }] })}
+                    className="text-[10px] font-black text-emerald-600 uppercase flex items-center gap-1 hover:underline"
+                  >
+                    <Plus className="h-3 w-3" /> Add Item
+                  </button>
+                </div>
+                {feeForm.items.map((item, idx) => (
+                  <div key={idx} className="flex gap-2 animate-in slide-in-from-right-2 duration-200">
+                    <input
+                      placeholder="Category (e.g. Lab Fee)"
+                      value={item.category}
+                      onChange={(e) => {
+                        const newItems = [...feeForm.items];
+                        newItems[idx].category = e.target.value;
+                        setFeeForm({ ...feeForm, items: newItems });
+                      }}
+                      className="flex-1 p-3 bg-white border border-slate-100 rounded-xl outline-none text-xs font-bold"
+                    />
+                    <input
+                      type="number"
+                      placeholder="Amount"
+                      value={item.amount}
+                      onChange={(e) => {
+                        const newItems = [...feeForm.items];
+                        newItems[idx].amount = parseFloat(e.target.value) || 0;
+                        setFeeForm({ ...feeForm, items: newItems });
+                      }}
+                      className="w-24 p-3 bg-white border border-slate-100 rounded-xl outline-none text-xs font-bold"
+                    />
+                    {feeForm.items.length > 1 && (
+                      <button 
+                        type="button" 
+                        onClick={() => setFeeForm({ ...feeForm, items: feeForm.items.filter((_, i) => i !== idx) })}
+                        className="p-3 text-slate-300 hover:text-rose-500 transition-colors"
+                      >
+                        <XCircle className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">Amount Payable</label>
-                  <input
-                    type="number"
-                    required
-                    value={feeForm.amount_due}
-                    onChange={(e) => setFeeForm({ ...feeForm, amount_due: e.target.value })}
-                    className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-black"
-                    placeholder="0"
-                  />
+                <div className="bg-slate-900 rounded-2xl p-4 flex flex-col justify-center">
+                  <p className="text-[9px] font-black text-white/40 uppercase tracking-widest mb-1">Total Payable</p>
+                  <p className="text-xl font-black text-white">Rs. {totalFeeAmount.toLocaleString()}</p>
                 </div>
                 <div>
                   <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">Initial Payment</label>
@@ -981,7 +1024,7 @@ export const StudentConsole: React.FC = () => {
                     type="number"
                     value={feeForm.amount_paid}
                     onChange={(e) => setFeeForm({ ...feeForm, amount_paid: e.target.value })}
-                    className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-black"
+                    className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-black text-sm"
                     placeholder="0"
                   />
                 </div>

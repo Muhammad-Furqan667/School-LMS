@@ -28,8 +28,8 @@ export const ParentDiaryView: React.FC<ParentDiaryViewProps> = ({ diary, childNa
                      <BookOpen className="h-5 w-5 text-indigo-600" />
                   </div>
                   <div>
-                     <p className="font-black text-slate-900 text-sm uppercase">{entry.assignment.subject.name}</p>
-                     <p className="text-[10px] text-slate-400 font-bold uppercase">{entry.assignment.teacher.full_name}</p>
+                     <p className="font-black text-slate-900 text-sm uppercase">{entry.assignment?.subject?.name || 'Class Update'}</p>
+                     <p className="text-[10px] text-slate-400 font-bold uppercase">{entry.assignment?.teacher?.full_name || 'Faculty Member'}</p>
                   </div>
                </div>
                <p className="text-slate-600 text-sm leading-relaxed">{entry.content}</p>

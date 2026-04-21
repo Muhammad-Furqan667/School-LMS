@@ -79,11 +79,11 @@ const ParentDashboard: React.FC = () => {
         SchoolService.getResults(activeChild.id),
         SchoolService.getAttendanceStats(activeChild.id)
       ]);
-      setDiary(diaryData);
-      setTimetable(timetableData);
-      setFees(feeData);
-      setResults(resultsData);
-      setAttendanceStats(attendanceData);
+      setDiary(diaryData || []);
+      setTimetable(timetableData || []);
+      setFees(feeData || []);
+      setResults(resultsData || []);
+      setAttendanceStats(attendanceData || null);
     } catch (error) {
       console.error('Failed to fetch details:', error);
     }
@@ -119,7 +119,7 @@ const ParentDashboard: React.FC = () => {
       <Routes>
         <Route path="/" element={<ParentOverview isLocked={isLocked} fees={fees} timetable={timetable} diary={diary} results={results} activeChild={activeChild} parentData={parentData} />} />
         <Route path="/academics" element={<AcademicHub results={results} attendanceStats={attendanceStats} activeChild={activeChild} />} />
-        <Route path="/fees" element={<ParentFeesView fees={fees} childName={activeChild?.name} parentName={parentData?.full_name} />} />
+        <Route path="/fees" element={<ParentFeesView fees={fees} parentName={parentData?.full_name} />} />
         <Route path="/diary" element={<ParentDiaryView diary={diary} childName={activeChild?.name} parentName={parentData?.full_name} />} />
         <Route path="/profile" element={<ParentProfile parent={parentData} childrenData={children} />} />
         <Route path="*" element={<ParentOverview isLocked={isLocked} fees={fees} timetable={timetable} diary={diary} results={results} activeChild={activeChild} parentData={parentData} />} />

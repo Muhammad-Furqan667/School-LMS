@@ -67,7 +67,7 @@ export const ParentOverview: React.FC<ParentOverviewProps> = ({
                  </div>
               </div>
               <p className="text-3xl font-black text-slate-900 mb-1">
-                 Rs. {fees.reduce((acc, f) => f.status === 'unpaid' ? acc + f.amount_due : acc, 0).toLocaleString()}
+                 Rs. {Array.isArray(fees) ? fees.reduce((acc, f) => f.status === 'unpaid' ? acc + (f.amount_due || 0) : acc, 0).toLocaleString() : '0'}
               </p>
               <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">Total Dues</p>
               <button 
@@ -91,8 +91,8 @@ export const ParentOverview: React.FC<ParentOverviewProps> = ({
                     <div key={idx} className="flex items-center gap-4 p-3 bg-slate-50 rounded-2xl border border-slate-100">
                        <span className="text-xs font-black text-emerald-600 text-center w-6">{idx + 1}</span>
                        <div className="flex-1">
-                          <p className="text-sm font-bold text-slate-900 leading-none mb-1">{slot.assignment.subject.name}</p>
-                          <p className="text-[10px] text-slate-400 font-bold uppercase">{slot.start_time}</p>
+                          <p className="text-sm font-bold text-slate-900 leading-none mb-1">{slot.assignment?.subject?.name || 'Academic Session'}</p>
+                          <p className="text-[10px] text-slate-400 font-bold uppercase">{slot.start_time || 'Schedule TBD'}</p>
                        </div>
                     </div>
                  ))}
@@ -120,8 +120,8 @@ export const ParentOverview: React.FC<ParentOverviewProps> = ({
                              <ShieldCheck className="h-5 w-5 text-emerald-600 group-hover:text-white" />
                           </div>
                           <div>
-                             <p className="text-sm font-black text-slate-900 leading-none mb-1">{entry.assignment.subject.name}</p>
-                             <p className="text-[10px] text-slate-400 font-bold uppercase">{entry.assignment.teacher.full_name}</p>
+                             <p className="text-sm font-black text-slate-900 leading-none mb-1">{entry.assignment?.subject?.name || 'Class Update'}</p>
+                             <p className="text-[10px] text-slate-400 font-bold uppercase">{entry.assignment?.teacher?.full_name || 'Faculty Member'}</p>
                           </div>
                        </div>
                        <p className="text-slate-600 text-sm leading-relaxed">{entry.content}</p>
