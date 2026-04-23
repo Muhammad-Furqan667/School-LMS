@@ -29,6 +29,8 @@ export interface HireFormState {
   username: string;
   password: string;
   salary: number;
+  subject_id: string;
+  class_id: string;
 }
 
 export interface EditFormState {

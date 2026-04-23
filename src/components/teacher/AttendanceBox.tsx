@@ -3,10 +3,11 @@ import { UserCheck, UserX, Clock, Save, Search } from 'lucide-react';
 
 interface AttendanceBoxProps {
   students: any[];
+  isClassTeacher?: boolean; // True if current teacher is the Section Moderator
   onSave?: (attendance: any) => void;
 }
 
-export const AttendanceBox: React.FC<AttendanceBoxProps> = ({ students, onSave }) => {
+export const AttendanceBox: React.FC<AttendanceBoxProps> = ({ students, isClassTeacher, onSave }) => {
   const [attendanceData, setAttendanceData] = useState<Record<string, 'present' | 'absent' | 'late'>>(
     students.reduce((acc, s) => ({ ...acc, [s.id]: 'present' }), {})
   );
@@ -18,11 +19,20 @@ export const AttendanceBox: React.FC<AttendanceBoxProps> = ({ students, onSave }
   );
 
   const toggleStatus = (studentId: string, status: 'present' | 'absent' | 'late') => {
+    if (!isClassTeacher) return;
     setAttendanceData(prev => ({ ...prev, [studentId]: status }));
   };
 
   return (
     <div className="bg-surface rounded-3xl border border-slate-200 overflow-hidden shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-500">
+      {!isClassTeacher && (
+        <div className="bg-amber-50 border-b border-amber-100 p-4 flex items-center gap-3">
+          <div className="h-8 w-8 bg-amber-100 rounded-lg flex items-center justify-center text-amber-600">
+            <Clock className="h-4 w-4" />
+          </div>
+          <p className="text-xs font-bold text-amber-700 uppercase tracking-widest">Attendance marking is restricted to the Section Moderator only.</p>
+        </div>
+      )}
       <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold text-slate-900">Student Attendance</h2>
@@ -42,7 +52,12 @@ export const AttendanceBox: React.FC<AttendanceBoxProps> = ({ students, onSave }
            </div>
            <button 
              onClick={() => onSave?.(attendanceData)}
-             className="flex items-center gap-2 px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-indigo-200"
+             disabled={!isClassTeacher}
+             className={`flex items-center gap-2 px-6 py-2 font-bold rounded-xl transition-all shadow-lg ${
+               isClassTeacher 
+                 ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-200' 
+                 : 'bg-slate-100 text-slate-400 shadow-none cursor-not-allowed'
+             }`}
            >
               <Save className="h-4 w-4" />
               <span className="hidden sm:inline">Save Sheet</span>

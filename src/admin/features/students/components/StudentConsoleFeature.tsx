@@ -197,6 +197,7 @@ export const StudentConsoleFeature: React.FC = () => {
           filteredStudents={filteredStudents}
           selectedStudent={selectedStudent}
           loading={dataLoading}
+          isSearching={!!searchTerm}
           openStudentDetail={openStudentDetail}
           handleOpenEditModal={handleOpenEditModal}
           handleDeleteStudent={(id) => handleDeleteStudent(id, () => {

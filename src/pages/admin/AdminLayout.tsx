@@ -9,7 +9,9 @@ import {
   X,
   BookOpen,
   ShieldCheck,
-  CalendarCheck2
+  CalendarCheck2,
+  ArrowUpRight,
+  CreditCard
 } from 'lucide-react';
 import { SchoolService } from '../../services/schoolService';
 
@@ -18,9 +20,11 @@ export const AdminLayout: React.FC = () => {
 
   const navItems = [
     { label: 'Overview', path: '/admin', icon: LayoutDashboard, end: true },
+    { label: 'Finance Hub', path: '/admin/finance', icon: CreditCard },
     { label: 'Attendance', path: '/admin/attendance', icon: CalendarCheck2 },
     { label: 'Classes', path: '/admin/classes', icon: GraduationCap },
     { label: 'Students', path: '/admin/students', icon: Users },
+    { label: 'Promotions', path: '/admin/promotions', icon: ArrowUpRight },
     { label: 'Courses', path: '/admin/courses', icon: BookOpen },
     { label: 'Teachers', path: '/admin/teachers', icon: GraduationCap },
     { label: 'System Audit', path: '/admin/audit', icon: ShieldCheck },

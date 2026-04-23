@@ -5,6 +5,8 @@ import type { HireFormState } from '../../types/teacher.types';
 interface HireTeacherModalProps {
   hireForm: HireFormState;
   setHireForm: React.Dispatch<React.SetStateAction<HireFormState>>;
+  subjects: any[];
+  classes: any[];
   loading: boolean;
   onClose: () => void;
   onSubmit: (e: React.FormEvent) => Promise<void>;
@@ -13,6 +15,8 @@ interface HireTeacherModalProps {
 export const HireTeacherModal: React.FC<HireTeacherModalProps> = ({
   hireForm,
   setHireForm,
+  subjects,
+  classes,
   loading,
   onClose,
   onSubmit,
@@ -73,6 +77,35 @@ export const HireTeacherModal: React.FC<HireTeacherModalProps> = ({
                   className="w-full p-5 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:bg-white focus:ring-4 focus:ring-emerald-500/5 transition-all font-black text-slate-900"
                   placeholder="e.g. Teacher123!"
                 />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">Initial Class</label>
+                <select
+                  value={hireForm.class_id}
+                  onChange={(e) => setHireForm({ ...hireForm, class_id: e.target.value })}
+                  className="w-full p-5 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:bg-white focus:ring-4 focus:ring-emerald-500/5 transition-all font-black text-slate-900 appearance-none cursor-pointer"
+                >
+                  <option value="">Select Section</option>
+                  {classes.map(c => (
+                    <option key={c.id} value={c.id}>Grade {c.grade}{c.section}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">Primary Subject</label>
+                <select
+                  value={hireForm.subject_id}
+                  onChange={(e) => setHireForm({ ...hireForm, subject_id: e.target.value })}
+                  className="w-full p-5 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:bg-white focus:ring-4 focus:ring-emerald-500/5 transition-all font-black text-slate-900 appearance-none cursor-pointer"
+                >
+                  <option value="">Select Subject</option>
+                  {subjects.map(s => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
               </div>
             </div>
 

@@ -3,17 +3,20 @@ import { Plus } from 'lucide-react';
 import { useClassesData } from '../hooks/useClassesData';
 import { useTimetableData } from '../hooks/useTimetableData';
 import { useAttendanceData } from '../hooks/useAttendanceData';
+import { useTeachersData } from '../../teachers/hooks/useTeachersData';
 
 import { ClassGrid } from './ClassGrid';
 import { AddClassModal } from './modals/AddClassModal';
 import { AttendanceModal } from './modals/AttendanceModal';
 import { TimetableModal } from './modals/TimetableModal';
+import { AssignModeratorModal } from './modals/AssignModeratorModal';
 
 import type { Class, ClassFormState, TimetableFormState } from '../types/class.types';
 
 export const ClassConsoleFeature: React.FC = () => {
   // Hooks
-  const { classes, loading: classesLoading, handleAddClass, handleDeleteClass } = useClassesData();
+  const { classes, loading: classesLoading, handleAddClass, handleDeleteClass, handleUpdateClass } = useClassesData();
+  const { teachers } = useTeachersData();
   const { 
     timetable, 
     assignments: timetableAssignments, 
@@ -35,10 +38,11 @@ export const ClassConsoleFeature: React.FC = () => {
   const [isClassModalOpen, setIsClassModalOpen] = useState(false);
   const [isTimetableModalOpen, setIsTimetableModalOpen] = useState(false);
   const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false);
+  const [isModeratorModalOpen, setIsModeratorModalOpen] = useState(false);
   const [selectedClass, setSelectedClass] = useState<Class | null>(null);
 
   // Forms state
-  const [classForm, setClassForm] = useState<ClassFormState>({ grade: '', section: '' });
+  const [classForm, setClassForm] = useState<ClassFormState>({ grade: '', section: '', class_teacher_id: '' });
   const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
   const [timetableForm, setTimetableForm] = useState<TimetableFormState>({
     assignment_id: '',
@@ -60,6 +64,11 @@ export const ClassConsoleFeature: React.FC = () => {
     setIsAttendanceModalOpen(true);
   };
 
+  const openModeratorAssignment = (c: Class) => {
+    setSelectedClass(c);
+    setIsModeratorModalOpen(true);
+  };
+
   const openTimetable = async (c: Class) => {
     setSelectedClass(c);
     setIsTimetableModalOpen(true);
@@ -68,9 +77,9 @@ export const ClassConsoleFeature: React.FC = () => {
 
   const onClassSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await handleAddClass(classForm.grade, classForm.section, () => {
+    await handleAddClass(classForm.grade, classForm.section, classForm.class_teacher_id, () => {
       setIsClassModalOpen(false);
-      setClassForm({ grade: '', section: '' });
+      setClassForm({ grade: '', section: '', class_teacher_id: '' });
     });
   };
 
@@ -98,6 +107,7 @@ export const ClassConsoleFeature: React.FC = () => {
         handleDeleteClass={handleDeleteClass}
         openTimetable={openTimetable}
         openAttendance={openAttendance}
+        onAssignModerator={openModeratorAssignment}
       />
 
       {isAttendanceModalOpen && selectedClass && (
@@ -119,8 +129,20 @@ export const ClassConsoleFeature: React.FC = () => {
         <AddClassModal
           classForm={classForm}
           setClassForm={setClassForm}
+          teachers={teachers}
           onClose={() => setIsClassModalOpen(false)}
           onSubmit={onClassSubmit}
+        />
+      )}
+
+      {isModeratorModalOpen && selectedClass && (
+        <AssignModeratorModal
+          selectedClass={selectedClass}
+          teachers={teachers}
+          onClose={() => setIsModeratorModalOpen(false)}
+          onSubmit={async (teacherId) => {
+            await handleUpdateClass(selectedClass.id, { class_teacher_id: teacherId });
+          }}
         />
       )}
 

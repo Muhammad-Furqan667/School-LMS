@@ -16,6 +16,9 @@ import { ClassConsole } from './pages/admin/ClassConsole';
 import { AttendanceConsole } from './pages/admin/AttendanceConsole';
 import { SystemAudit } from './pages/admin/SystemAudit';
 import StudentFeeCard from './pages/admin/StudentFeeCard';
+import PromotionConsole from './pages/admin/PromotionConsole';
+import StudentProfilePage from './pages/admin/StudentProfilePage';
+import FinanceConsole from './pages/admin/FinanceConsole';
 import TeacherDashboard from './pages/teacher/Dashboard';
 import ParentDashboard from './pages/parent/Dashboard';
 
@@ -43,6 +46,9 @@ function App() {
       setLoading(true);
       const data = await SchoolService.getProfile(userId);
       setProfile(data);
+      if (data?.role === 'admin') {
+        await SchoolService.ensureCurrentSession();
+      }
       setError(null);
     } catch (error: any) {
       console.error('Profile fetch failed:', error);
@@ -125,10 +131,13 @@ function App() {
         {profile?.role === 'admin' && (
           <Route path="/admin" element={session ? <AdminLayout /> : <Navigate to="/login" />}>
             <Route index element={<AdminDashboard />} />
+            <Route path="finance" element={<FinanceConsole />} />
             <Route path="attendance" element={<AttendanceConsole />} />
             <Route path="students" element={<StudentConsole />} />
+            <Route path="students/:id" element={<StudentProfilePage />} />
             <Route path="students/:id/fee-card" element={<StudentFeeCard />} />
             <Route path="classes" element={<ClassConsole />} />
+            <Route path="promotions" element={<PromotionConsole />} />
             <Route path="courses" element={<CourseConsole />} />
             <Route path="teachers" element={<TeacherConsole />} />
             <Route path="audit" element={<SystemAudit />} />

@@ -19,6 +19,7 @@ const TeacherDashboard: React.FC = () => {
   const [timetable, setTimetable] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
   const [results, setResults] = useState<any[]>([]);
+  const [selectedClassData, setSelectedClassData] = useState<any>(null);
   const [isMarksModalOpen, setIsMarksModalOpen] = useState(false);
   const [activeStudentForMarks, setActiveStudentForMarks] = useState<any>(null);
   const [teacherStats, setTeacherStats] = useState<any>(null);
@@ -77,16 +78,18 @@ const TeacherDashboard: React.FC = () => {
 
   const fetchAssignmentDetails = async (assignment: any) => {
     try {
-      const [diaryData, timetableData, studentData, resultsData] = await Promise.all([
+      const [diaryData, timetableData, studentData, resultsData, classData] = await Promise.all([
         SchoolService.getDiaryEntries(assignment.id),
         SchoolService.getTimetable(assignment.class_id),
         SchoolService.getStudents(assignment.class_id),
-        SchoolService.getResults(undefined, assignment.subject_id)
+        SchoolService.getResults(undefined, assignment.subject_id),
+        SchoolService.getClassById(assignment.class_id)
       ]);
       setHistory(diaryData);
       setTimetable(timetableData);
       setStudents(studentData);
       setResults(resultsData);
+      setSelectedClassData(classData);
     } catch (error) {
       toast.error('Error fetching class details');
     }
@@ -156,6 +159,7 @@ const TeacherDashboard: React.FC = () => {
         <Route path="attendance" element={
           <AttendanceBox 
             students={students} 
+            isClassTeacher={selectedClassData?.class_teacher_id === teacherData?.id}
             onSave={async (attendanceData) => {
                if(!selectedAssignment) {
                  toast.error('Select an assignment first to mark attendance');

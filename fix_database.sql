@@ -19,6 +19,10 @@ GRANT ALL ON TABLE public.classes TO anon, authenticated, service_role;
 GRANT ALL ON TABLE public.subjects TO anon, authenticated, service_role;
 GRANT ALL ON TABLE public.results TO anon, authenticated, service_role;
 
+-- Add Section Moderator column to Classes
+ALTER TABLE public.classes 
+ADD COLUMN IF NOT EXISTS class_teacher_id uuid REFERENCES public.teachers(id) ON DELETE SET NULL;
+
 -- 3. FIX ROW LEVEL SECURITY (RLS) POLICIES
 -- This fixes the "401 Unauthorized" when assigning subjects to teachers or modifying records.
 -- If RLS is turned ON for these tables, these policies will allow the admin/teacher dashboards to bypass the blocks.
@@ -75,6 +79,11 @@ GRANT ALL ON TABLE public.attendance TO anon, authenticated, service_role;
 
 CREATE POLICY "Allow all operations for authenticated users on attendance" 
 ON public.attendance AS PERMISSIVE FOR ALL 
+TO public 
+USING (true) WITH CHECK (true);
+
+CREATE POLICY "Allow all operations for authenticated users on classes" 
+ON public.classes AS PERMISSIVE FOR ALL 
 TO public 
 USING (true) WITH CHECK (true);
 

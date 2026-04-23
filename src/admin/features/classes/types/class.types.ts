@@ -6,12 +6,18 @@ export interface Class {
   academic_years?: {
     year_label: string;
   };
+  class_teacher_id?: string;
+  class_teacher?: {
+    id: string;
+    full_name: string;
+  };
   [key: string]: any;
 }
 
 export interface ClassFormState {
   grade: string;
   section: string;
+  class_teacher_id: string;
 }
 
 export interface TimetableSlot {

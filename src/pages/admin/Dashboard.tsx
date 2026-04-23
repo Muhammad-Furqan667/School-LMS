@@ -131,15 +131,7 @@ const AdminDashboard: React.FC = () => {
             
             <div className="h-72 sm:h-85 w-full relative z-10">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={[
-                  { name: 'Jan', rev: 42000 },
-                  { name: 'Feb', rev: 38000 },
-                  { name: 'Mar', rev: 45000 },
-                  { name: 'Apr', rev: 59000 },
-                  { name: 'May', rev: 52000 },
-                  { name: 'Jun', rev: 48000 },
-                  { name: 'Jul', rev: stats?.totalRevenue > 61000 ? stats.totalRevenue : 61000 },
-                ]}>
+                <AreaChart data={stats?.revenueTrend || []}>
                   <defs>
                     <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#10b981" stopOpacity={0.2}/>
@@ -261,19 +253,26 @@ const AdminDashboard: React.FC = () => {
 
                 {/* Recovery Ratio Check */}
                 <div className="p-7 bg-white/5 rounded-[2.5rem] border border-white/10 hover:bg-white/[0.08] transition-all duration-500 group cursor-default">
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-5">
-                        <div className="h-12 w-12 rounded-2xl bg-amber-500/20 flex items-center justify-center text-amber-500 transition-transform group-hover:scale-110">
-                        <DollarSign className="h-6 w-6" />
+                        <div className="h-12 w-12 rounded-2xl bg-rose-500/20 flex items-center justify-center text-rose-500">
+                        <TrendingDown className="h-6 w-6" />
                         </div>
                         <div>
-                        <p className="text-sm font-black text-white">Recovery</p>
-                        <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest">Net Audit Ratio</p>
+                        <p className="text-sm font-black text-white">Defaulters</p>
+                        <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest">High-Priority Arrears</p>
                         </div>
                     </div>
-                    <div className="text-2xl font-black text-amber-500">
-                        {stats?.feesPaidCount > 0 ? Math.round((stats.feesPaidCount / (stats.feesPaidCount + stats.feesUnpaidCount)) * 100) : 0}%
-                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    {stats?.topDefaulters?.length > 0 ? stats.topDefaulters.map((d: any, idx: number) => (
+                      <div key={idx} className="flex items-center justify-between text-[10px] font-bold py-2 border-b border-white/5 last:border-0">
+                        <span className="text-white/80">{d.name} <span className="text-white/20 ml-1">G{d.grade}</span></span>
+                        <span className="text-rose-400">PKR {d.pending.toLocaleString()}</span>
+                      </div>
+                    )) : (
+                      <p className="text-[10px] text-white/20 italic">No pending dues detected</p>
+                    )}
                   </div>
                 </div>
               </div>

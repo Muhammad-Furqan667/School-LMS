@@ -14,7 +14,9 @@ interface TeacherDetailModalProps {
   handleSaveEdit: () => Promise<void>;
   handleDeleteTeacher: (id: string) => Promise<void>;
   handleRemoveAssignment: (assignmentId: string) => Promise<void>;
+  handleAssignModerator: (teacherId: string, classId: string) => Promise<void>;
   setIsAssignModalOpen: (val: boolean) => void;
+  classes: any[];
 }
 
 export const TeacherDetailModal: React.FC<TeacherDetailModalProps> = ({
@@ -29,7 +31,9 @@ export const TeacherDetailModal: React.FC<TeacherDetailModalProps> = ({
   handleSaveEdit,
   handleDeleteTeacher,
   handleRemoveAssignment,
+  handleAssignModerator,
   setIsAssignModalOpen,
+  classes,
 }) => {
   const groupedTasks = (tasks || []).reduce((acc: any, task: any) => {
     const className = task.assignment?.class 
@@ -67,12 +71,16 @@ export const TeacherDetailModal: React.FC<TeacherDetailModalProps> = ({
             ) : (
               <>
                 <h2 className="text-2xl font-black tracking-tight">{selectedTeacher.full_name}</h2>
-                <p className="text-emerald-400 text-[10px] font-black uppercase tracking-[0.2em] pt-1 leading-none mt-2">Senior Faculty Member</p>
+                <p className="text-emerald-400 text-[10px] font-black uppercase tracking-[0.2em] pt-1 leading-none mt-2">
+                  {selectedTeacher.profiles?.role === 'admin' ? 'Head of Faculty' : 'Faculty Member'}
+                </p>
               </>
             )}
           </div>
 
           <div className="flex flex-col gap-3 mt-auto pt-10">
+
+
             {isEditing ? (
               <>
                 <button
@@ -145,6 +153,30 @@ export const TeacherDetailModal: React.FC<TeacherDetailModalProps> = ({
                     : 'Institutional entry record missing'}
                 </p>
               )}
+            </div>
+          </div>
+
+          {/* Moderator Assignment */}
+          <div className="bg-indigo-50/50 rounded-[2.5rem] p-8 border border-indigo-100">
+            <h3 className="text-sm font-black text-slate-900 mb-6 flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-indigo-600" /> Section Moderator Privileges
+            </h3>
+            <div className="space-y-4">
+               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-relaxed">
+                  Assign this teacher as the primary moderator for a specific section.
+               </p>
+               <select
+                 value={classes.find(c => c.class_teacher_id === selectedTeacher.id)?.id || ''}
+                 onChange={(e) => handleAssignModerator(selectedTeacher.id, e.target.value)}
+                 className="w-full bg-white border border-slate-200 rounded-2xl p-5 outline-none focus:ring-4 focus:ring-indigo-500/5 font-black text-slate-900 appearance-none cursor-pointer"
+               >
+                 <option value="">No Section Assigned</option>
+                 {classes.map((c) => (
+                   <option key={c.id} value={c.id}>
+                     Grade {c.grade}{c.section} Moderator
+                   </option>
+                 ))}
+               </select>
             </div>
           </div>
 

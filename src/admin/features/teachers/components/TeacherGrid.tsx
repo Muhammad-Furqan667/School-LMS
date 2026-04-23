@@ -59,14 +59,14 @@ export const TeacherGrid: React.FC<TeacherGridProps> = ({
           </div>
 
           <div className="flex flex-wrap gap-2">
-            {(teacher.teacher_assignments || []).slice(0, 2).map((a: any) => (
+            {(teacher.teacher_assignments || []).slice(0, 4).map((a: any) => (
               <span key={a.id} className="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-xl text-[10px] font-black border border-indigo-100">
-                {a.subject?.name || 'Subject'}
+                {a.subject?.name || 'Subject'}{a.class ? ` - G${a.class.grade}` : ''}
               </span>
             ))}
-            {(teacher.teacher_assignments?.length || 0) > 2 && (
+            {(teacher.teacher_assignments?.length || 0) > 4 && (
               <span className="px-3 py-1.5 bg-slate-100 text-slate-400 rounded-xl text-[10px] font-black">
-                +{teacher.teacher_assignments.length - 2} More
+                +{teacher.teacher_assignments.length - 4} More
               </span>
             )}
           </div>

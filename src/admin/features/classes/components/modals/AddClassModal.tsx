@@ -5,6 +5,7 @@ import type { ClassFormState } from '../../types/class.types';
 interface AddClassModalProps {
   classForm: ClassFormState;
   setClassForm: React.Dispatch<React.SetStateAction<ClassFormState>>;
+  teachers: any[];
   onClose: () => void;
   onSubmit: (e: React.FormEvent) => Promise<void>;
 }
@@ -12,6 +13,7 @@ interface AddClassModalProps {
 export const AddClassModal: React.FC<AddClassModalProps> = ({
   classForm,
   setClassForm,
+  teachers,
   onClose,
   onSubmit,
 }) => {
@@ -46,6 +48,20 @@ export const AddClassModal: React.FC<AddClassModalProps> = ({
                 className="w-full p-5 bg-slate-50 border rounded-2xl outline-none font-bold" 
                 placeholder="e.g. A" 
               />
+            </div>
+            <div>
+              <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">Section Moderator</label>
+              <select
+                required
+                value={classForm.class_teacher_id}
+                onChange={(e) => setClassForm({...classForm, class_teacher_id: e.target.value})}
+                className="w-full p-5 bg-slate-50 border rounded-2xl outline-none font-bold appearance-none cursor-pointer"
+              >
+                <option value="">Select Moderator</option>
+                {teachers.map(t => (
+                  <option key={t.id} value={t.id}>{t.full_name}</option>
+                ))}
+              </select>
             </div>
             <button type="submit" className="w-full py-5 bg-slate-900 text-white font-black rounded-2xl hover:bg-emerald-600 transition-all">Publish Class</button>
          </form>

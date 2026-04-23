@@ -24,12 +24,13 @@ export const useClassesData = () => {
     fetchClasses();
   }, []);
 
-  const handleAddClass = async (grade: string, section: string, onSuccess: () => void) => {
+  const handleAddClass = async (grade: string, section: string, classTeacherId: string, onSuccess: () => void) => {
     try {
       const { data: years } = await supabase.from('academic_years').select('id').eq('is_current', true).single();
       await SchoolService.upsertClass({
         grade,
         section,
+        class_teacher_id: classTeacherId,
         academic_year_id: years?.id
       });
       toast.success('Class created');
@@ -51,11 +52,22 @@ export const useClassesData = () => {
     }
   };
 
+  const handleUpdateClass = async (id: string, updates: Partial<Class>) => {
+    try {
+      await SchoolService.upsertClass({ id, ...updates });
+      toast.success('Class updated');
+      fetchClasses();
+    } catch {
+      toast.error('Failed to update class');
+    }
+  };
+
   return {
     classes,
     loading,
     fetchClasses,
     handleAddClass,
-    handleDeleteClass
+    handleDeleteClass,
+    handleUpdateClass
   };
 };

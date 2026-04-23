@@ -17,7 +17,7 @@ import type { Teacher, HireFormState, EditFormState, AssignFormState } from '../
 export const TeacherConsoleFeature: React.FC = () => {
   // Hooks
   const { teachers, classes, subjects, loading: dataLoading, fetchAll } = useTeachersData();
-  const { loading: actionsLoading, handleHire, handleSaveEdit, handleDeleteTeacher } = useTeacherActions(fetchAll);
+  const { loading: actionsLoading, handleHire, handleSaveEdit, handleDeleteTeacher, handleAssignModerator } = useTeacherActions(fetchAll);
   const { 
     teacherAssignments, 
     fetchAssignments, 
@@ -29,6 +29,11 @@ export const TeacherConsoleFeature: React.FC = () => {
 
   // Local State
   const [searchTerm, setSearchTerm] = useState('');
+  const [filters, setFilters] = useState({
+    subjectId: '',
+    grade: '',
+    isHeadTeacher: false
+  });
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
   const [isHireModalOpen, setIsHireModalOpen] = useState(false);
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
@@ -40,6 +45,8 @@ export const TeacherConsoleFeature: React.FC = () => {
     username: '',
     password: '',
     salary: 0,
+    subject_id: '',
+    class_id: ''
   });
 
   const [editForm, setEditForm] = useState<EditFormState>({
@@ -112,9 +119,26 @@ export const TeacherConsoleFeature: React.FC = () => {
     });
   };
 
-  const filteredTeachers = teachers.filter(t =>
-    t.full_name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredTeachers = teachers.filter(t => {
+    const matchesSearch = t.full_name.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesSubject = !filters.subjectId || 
+      t.teacher_assignments?.some((a: any) => 
+        String(a.subject_id) === String(filters.subjectId) || 
+        String(a.subject?.id) === String(filters.subjectId)
+      );
+    
+    const matchesGrade = !filters.grade || 
+      t.teacher_assignments?.some((a: any) => 
+        String(a.class?.grade) === String(filters.grade) || 
+        String(a.class_id) === String(filters.grade) // Fallback check
+      );
+    
+    const matchesHead = !filters.isHeadTeacher || 
+      classes.some(c => String(c.class_teacher_id) === String(t.id));
+
+    return matchesSearch && matchesSubject && matchesGrade && matchesHead;
+  });
 
   return (
     <div className="space-y-6 md:space-y-8 animate-in fade-in duration-500 pb-10">
@@ -135,7 +159,14 @@ export const TeacherConsoleFeature: React.FC = () => {
         </button>
       </div>
 
-      <TeacherFilters searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
+      <TeacherFilters 
+        searchTerm={searchTerm} 
+        setSearchTerm={setSearchTerm} 
+        subjects={subjects}
+        classes={classes}
+        filters={filters}
+        setFilters={setFilters}
+      />
 
       {/* Main Content Area */}
       <div className="flex flex-col xl:flex-row gap-6">
@@ -159,7 +190,9 @@ export const TeacherConsoleFeature: React.FC = () => {
             handleSaveEdit={onSaveEditSubmit}
             handleDeleteTeacher={onDeleteSubmit}
             handleRemoveAssignment={onRemoveAssignmentSubmit}
+            handleAssignModerator={handleAssignModerator}
             setIsAssignModalOpen={setIsAssignModalOpen}
+            classes={classes}
           />
         )}
       </div>
@@ -168,6 +201,8 @@ export const TeacherConsoleFeature: React.FC = () => {
         <HireTeacherModal
           hireForm={hireForm}
           setHireForm={setHireForm}
+          subjects={subjects}
+          classes={classes}
           loading={actionsLoading}
           onClose={() => setIsHireModalOpen(false)}
           onSubmit={onHireSubmit}

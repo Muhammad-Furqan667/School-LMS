@@ -16,7 +16,12 @@ export const useTeacherActions = (fetchAll: () => void) => {
       });
       await SchoolService.upsertTeacherAccess(res.id, hireForm.username, hireForm.password);
 
-      toast.success('Teacher hired successfully');
+      // Add initial assignment if provided
+      if (hireForm.class_id && hireForm.subject_id) {
+        await SchoolService.createTeacherAssignment(res.id, hireForm.subject_id, hireForm.class_id);
+      }
+
+      toast.success('Teacher hired and assigned successfully');
       onSuccess();
       fetchAll();
     } catch {
@@ -33,31 +38,37 @@ export const useTeacherActions = (fetchAll: () => void) => {
   ) => {
     try {
       setLoading(true);
+      
+      // 1. Update Teacher Basic Info
       await SchoolService.updateTeacher(selectedTeacher.id, {
         full_name: editForm.full_name,
         salary: editForm.salary,
         joined_at: editForm.joined_at ? new Date(editForm.joined_at).toISOString() : null
       });
 
-      if (editForm.password) {
-        if (selectedTeacher.profile_id) {
+      // 2. Update Profile Credentials if needed
+      if (selectedTeacher.profile_id) {
+        if (editForm.password) {
           await SchoolService.resetUserPasswordById(selectedTeacher.profile_id, editForm.password);
-        } else if (editForm.username) {
-          await SchoolService.upsertTeacherAccess(selectedTeacher.id, editForm.username, editForm.password);
         }
+        const profileData = Array.isArray(selectedTeacher.profiles) ? selectedTeacher.profiles[0] : selectedTeacher.profiles;
+        if (editForm.username && editForm.username !== (profileData?.registration_no || '')) {
+          await SchoolService.updateProfileRegistration(selectedTeacher.profile_id, editForm.username);
+        }
+      } else if (editForm.username && editForm.password) {
+        // Create new profile if missing
+        await SchoolService.upsertTeacherAccess(selectedTeacher.id, editForm.username, editForm.password);
       }
 
-      toast.success('Teacher updated');
-      const updatedTeacher = {
-        ...selectedTeacher,
-        full_name: editForm.full_name,
-        salary: editForm.salary,
-        joined_at: editForm.joined_at
-      };
-      onSuccess(updatedTeacher);
+      toast.success('Teacher updated successfully');
+      
+      // Fetch fresh data from DB to ensure sync
+      const refreshed = await SchoolService.getTeacherById(selectedTeacher.id);
+      onSuccess(refreshed);
       fetchAll();
-    } catch {
-      toast.error('Update failed');
+    } catch (err: any) {
+      console.error('Update failed:', err);
+      toast.error(err.message?.includes('unique') ? 'Registration ID already taken' : 'Update failed');
     } finally {
       setLoading(false);
     }
@@ -78,10 +89,59 @@ export const useTeacherActions = (fetchAll: () => void) => {
     }
   };
 
+  const handleToggleRole = async (teacher: Teacher, onSuccess: (updated: Teacher) => void) => {
+    if (!teacher.profile_id || !teacher.profiles) {
+      toast.error('Teacher must have a digital ID first');
+      return;
+    }
+
+    const newRole = teacher.profiles.role === 'admin' ? 'teacher' : 'admin';
+    try {
+      setLoading(true);
+      await SchoolService.updateProfileRole(teacher.profile_id, newRole);
+      const updated = await SchoolService.getTeacherById(teacher.id);
+      toast.success(newRole === 'admin' ? 'Promoted to Head of Faculty' : 'Role reverted to Faculty');
+      onSuccess(updated);
+      fetchAll();
+    } catch {
+      toast.error('Failed to update role');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAssignModerator = async (teacherId: string, classId: string) => {
+    try {
+      setLoading(true);
+      
+      // 1. If a classId is provided, assign this teacher to that class
+      if (classId) {
+        await SchoolService.upsertClass({ id: classId, class_teacher_id: teacherId });
+        toast.success('Section Moderator updated successfully');
+      } else {
+        // 2. If no classId, it means we might want to remove this teacher from whatever class they are moderating
+        const all_classes = await SchoolService.getClasses();
+        const current_class = all_classes.find(c => c.class_teacher_id === teacherId);
+        if (current_class) {
+          await SchoolService.upsertClass({ id: current_class.id, class_teacher_id: null });
+          toast.success('Moderator privileges removed');
+        }
+      }
+      fetchAll();
+    } catch (err: any) {
+      console.error('Moderator assignment error:', err);
+      toast.error(`Assignment failed: ${err.message || 'Unknown error'}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return {
     loading,
     handleHire,
     handleSaveEdit,
-    handleDeleteTeacher
+    handleDeleteTeacher,
+    handleToggleRole,
+    handleAssignModerator
   };
 };

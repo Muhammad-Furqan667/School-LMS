@@ -20,12 +20,50 @@ export class SchoolService {
   static async getClasses() {
     const { data, error } = await supabase
       .from('classes')
-      .select('*, academic_years(*)');
-    if (error) throw error;
+      .select('*, academic_years(*), class_teacher:teachers!class_teacher_id(id, full_name)');
+    
+    if (error) {
+      console.warn('Class teacher join failed, falling back:', error.message);
+      const { data: fallback, error: fallbackError } = await supabase
+        .from('classes')
+        .select('*, academic_years(*)');
+      if (fallbackError) throw fallbackError;
+      return fallback;
+    }
+    return data;
+  }
+
+  static async getClassById(id: string) {
+    const { data, error } = await supabase
+      .from('classes')
+      .select('*, academic_years(*), class_teacher:teachers!class_teacher_id(id, full_name)')
+      .eq('id', id)
+      .single();
+    
+    if (error) {
+      console.warn('ClassById teacher join failed, falling back:', error.message);
+      const { data: fallback, error: fallbackError } = await supabase
+        .from('classes')
+        .select('*, academic_years(*)')
+        .eq('id', id)
+        .single();
+      if (fallbackError) throw fallbackError;
+      return fallback;
+    }
     return data;
   }
 
   static async upsertClass(classData: any) {
+    if (classData.id) {
+      const { data, error } = await supabase
+        .from('classes')
+        .update(classData)
+        .eq('id', classData.id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    }
     const { data, error } = await supabase
       .from('classes')
       .upsert(classData)
@@ -54,11 +92,24 @@ export class SchoolService {
    * @returns {Promise<Tables<'students'>[]>} Array of students.
    */
   static async getStudents(classId?: string, parentId?: string) {
-    let query = supabase.from('students').select('*, parents(*), classes(*), fees(status)');
+    let query = supabase.from('students').select('*, parents(*), classes(*, academic_years(*)), fees(status)');
     if (classId) query = query.eq('class_id', classId);
     if (parentId) query = query.eq('parent_id', parentId);
     
     const { data, error } = await query.order('created_at', { ascending: false });
+    if (error) throw error;
+    return data;
+  }
+
+  /**
+   * Fetches a single student by ID.
+   */
+  static async getStudentById(studentId: string) {
+    const { data, error } = await supabase
+      .from('students')
+      .select('*, classes(*), parents(*)')
+      .eq('id', studentId)
+      .single();
     if (error) throw error;
     return data;
   }
@@ -428,6 +479,34 @@ export class SchoolService {
     return profile;
   }
 
+  static async updateProfileRole(profileId: string, role: 'admin' | 'teacher' | 'parent') {
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({ role })
+      .eq('id', profileId)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
+  static async getTeacherById(id: string) {
+    const { data, error } = await supabase
+      .from('teachers')
+      .select(`
+        *,
+        teacher_assignments(
+          id,
+          subject:subjects(id, name),
+          class:classes(id, grade, section)
+        )
+      `)
+      .eq('id', id)
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
   static async upsertStudentAccess(studentId: string, rollNo: string, password: string) {
     try {
       await this.createStudentAccess(studentId, rollNo, password);
@@ -728,24 +807,37 @@ export class SchoolService {
 
     const { data: fees, error: errFe } = await supabase
       .from('fees')
-      .select('amount_due, amount_paid, status');
+      .select('amount_due, amount_paid, status, created_at');
     if (errFe) throw errFe;
 
     const { count: subjectCount } = await supabase.from('subjects').select('*', { count: 'exact', head: true });
+
+    // Calculate revenue trends (last 6 months)
+    const monthlyRevenue: Record<string, number> = {};
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    
+    (fees || []).forEach((f: any) => {
+      const date = new Date(f.created_at);
+      const monthKey = months[date.getMonth()];
+      monthlyRevenue[monthKey] = (monthlyRevenue[monthKey] || 0) + Number(f.amount_paid || 0);
+    });
+
+    const revenueTrend = months.map(m => ({
+      name: m,
+      rev: monthlyRevenue[m] || 0
+    })).filter((_, i) => i <= new Date().getMonth());
 
     const totalRevenue = (fees || [])
       .reduce((sum: number, f: any) => sum + Number(f.amount_paid || 0), 0);
 
     const pendingFees = (fees || [])
-      .filter((f: any) => f.status !== 'paid')
+      .filter((f: any) => f.status !== 'Paid')
       .reduce((sum: number, f: any) => sum + (Number(f.amount_due || 0) - Number(f.amount_paid || 0)), 0);
 
     const gradeCounts: Record<string, number> = {};
     (students || []).forEach((s: any) => {
       let grade = (s.classes as any)?.grade;
-      if (!grade) {
-        grade = s.class_id ? 'Unknown' : 'Graduated';
-      }
+      if (!grade) grade = 'Unassigned';
       gradeCounts[grade] = (gradeCounts[grade] || 0) + 1;
     });
 
@@ -762,10 +854,24 @@ export class SchoolService {
       totalStudents: students?.length || 0,
       totalTeachers: teachers?.length || 0,
       activeSubjects: subjectCount || 0,
-      gradeDistribution: Object.entries(gradeCounts).map(([name, value]) => ({ name: `Grade ${name}`, value })),
+      gradeDistribution: Object.entries(gradeCounts)
+        .sort((a, b) => parseInt(a[0]) - parseInt(b[0]))
+        .map(([name, value]) => ({ name: `Grade ${name}`, value })),
+      revenueTrend,
       recentStudents: recentStudentsCount,
-      feesPaidCount: (fees || []).filter((f: any) => f.status === 'paid').length,
-      feesUnpaidCount: (fees || []).filter((f: any) => f.status !== 'paid').length,
+      feesPaidCount: (fees || []).filter((f: any) => f.status === 'Paid').length,
+      feesUnpaidCount: (fees || []).filter((f: any) => f.status !== 'Paid').length,
+      topDefaulters: (students || [])
+        .map((s: any) => {
+          const studentFees = (fees || []).filter((f: any) => f.student_id === s.id);
+          const pending = studentFees
+            .filter((f: any) => f.status !== 'Paid')
+            .reduce((sum: number, f: any) => sum + (Number(f.amount_due || 0) - Number(f.amount_paid || 0)), 0);
+          return { name: s.name, pending, grade: s.classes?.grade };
+        })
+        .filter(s => s.pending > 0)
+        .sort((a, b) => b.pending - a.pending)
+        .slice(0, 5)
     };
   }
 
@@ -833,6 +939,26 @@ export class SchoolService {
     if (error) throw error;
   }
 
+  static async updateProfileRegistration(profileId: string, newRegistrationNo: string) {
+    const { error } = await (supabase as any)
+      .from('profiles')
+      .update({ registration_no: newRegistrationNo })
+      .eq('id', profileId);
+
+    if (error) throw error;
+  }
+
+  static async getProfileCredentials(profileId: string) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('registration_no, password')
+      .eq('id', profileId)
+      .single();
+
+    if (error) throw error;
+    return data;
+  }
+
   static async resetUserPasswordById(profileId: string, newPassword: string) {
     const { error } = await (supabase as any)
       .from('profiles')
@@ -881,6 +1007,8 @@ export class SchoolService {
         *,
         teacher_assignments(
           id,
+          subject_id,
+          class_id,
           subject:subjects(id, name),
           class:classes(id, grade, section)
         )
@@ -1089,6 +1217,152 @@ export class SchoolService {
     return data;
   }
 
+  /**
+   * Fetches students in a specific class along with their academic result status for promotion.
+   */
+  static async getStudentsForPromotion(classId: string) {
+    const { data, error } = await supabase
+      .from('students')
+      .select(`
+        *,
+        results!left(status, exam_type, marks_obtained, total_marks),
+        fees!left(amount_due, amount_paid, status)
+      `)
+      .eq('class_id', classId);
+    
+    if (error) throw error;
+    return data || [];
+  }
+
+  /**
+   * Bulk promotes students to a new class and records the transition in history.
+   */
+  static async promoteStudents(studentIds: string[], targetClassId: string, academicYearId: string) {
+    // 1. Update students table
+    const { error: updateError } = await supabase
+      .from('students')
+      .update({ class_id: targetClassId })
+      .in('id', studentIds);
+
+    if (updateError) throw updateError;
+
+    // 2. Insert into history
+    const historyRecords = studentIds.map(id => ({
+      student_id: id,
+      class_id: targetClassId,
+      academic_year_id: academicYearId
+    }));
+
+    const { error: historyError } = await supabase
+      .from('student_class_history')
+      .insert(historyRecords);
+
+    if (historyError) throw historyError;
+
+    return { success: true };
+  }
+
+  /**
+   * Fetches all academic years.
+   */
+  static async getAcademicYears() {
+    const { data, error } = await supabase
+      .from('academic_years')
+      .select('*')
+      .order('year_label', { ascending: false });
+    
+    if (error) throw error;
+    return data || [];
+  }
+  /**
+   * Ensures at least one session is marked as current.
+   */
+  static async ensureCurrentSession() {
+    try {
+      const { data: years } = await supabase
+        .from('academic_years')
+        .select('*');
+      
+      if (!years || years.length === 0) {
+        const { data: created } = await supabase
+          .from('academic_years')
+          .insert({ year_label: '2024-25', is_current: true })
+          .select();
+        return created ? created[0] : null;
+      }
+
+      const current = years.find(y => y.is_current);
+      if (!current && years.length > 0) {
+        await this.setCurrentYear(years[0].id);
+        return years[0];
+      }
+      return current;
+    } catch (e) {
+      console.error('Session Init Error:', e);
+      return null;
+    }
+  }
+
+  /**
+   * Creates or updates an academic year.
+   */
+  static async upsertAcademicYear(year: any) {
+    try {
+      // Direct Insert
+      const { data, error } = await supabase
+        .from('academic_years')
+        .insert(year)
+        .select();
+      
+      if (error) {
+        console.error('Insert Error:', error);
+        // Direct Upsert Fallback
+        const { data: upsertData, error: upsertError } = await supabase
+          .from('academic_years')
+          .upsert(year, { onConflict: 'year_label' })
+          .select();
+        
+        if (upsertError) throw upsertError;
+        return upsertData;
+      }
+      return data;
+    } catch (e) {
+      console.error('Upsert Session Error:', e);
+      throw e;
+    }
+  }
+
+  /**
+   * Sets a specific academic year as the current one and deselects others.
+   */
+  static async setCurrentYear(yearId: string) {
+    // Reset all
+    await supabase.from('academic_years').update({ is_current: false }).neq('id', '00000000-0000-0000-0000-000000000000');
+    
+    // Set target
+    const { error } = await supabase
+      .from('academic_years')
+      .update({ is_current: true })
+      .eq('id', yearId);
+    
+    if (error) throw error;
+    return { success: true };
+  }
+
+  /**
+   * Fetches the class history for a specific student.
+   */
+  static async getStudentHistory(studentId: string) {
+    const { data, error } = await supabase
+      .from('student_class_history')
+      .select('*, class:classes(grade, section), academic_year:academic_years(year_label)')
+      .eq('student_id', studentId)
+      .order('promoted_at', { ascending: false });
+    
+    if (error) throw error;
+    return data || [];
+  }
+
   static async updateTaskStatus(taskId: string, status: 'pending' | 'completed') {
     const { data, error } = await (supabase as any)
       .from('teacher_tasks')
@@ -1099,6 +1373,60 @@ export class SchoolService {
     
     if (error) throw error;
     return data;
+  }
+
+  /**
+   * Links classes with no academic_year_id to the current session.
+   */
+  static async linkOrphanClasses(yearId: string) {
+    const { error } = await supabase
+      .from('classes')
+      .update({ academic_year_id: yearId })
+      .is('academic_year_id', null);
+    
+    if (error) throw error;
+    return { success: true };
+  }
+
+  /**
+   * Issues fees to multiple students at once.
+   */
+  static async issueBulkFees(studentIds: string[], feeData: any) {
+    const feeRecords = studentIds.map(id => ({
+      student_id: id,
+      ...feeData,
+      status: 'Unpaid',
+      amount_paid: 0
+    }));
+
+    const { data, error } = await supabase
+      .from('fees')
+      .insert(feeRecords);
+    
+    if (error) throw error;
+    return data;
+  }
+
+  /**
+   * Fetches financial status for a report.
+   */
+  static async getFinancialReport() {
+    const { data, error } = await supabase
+      .from('fees')
+      .select(`
+        *,
+        student:students(
+          id, 
+          name, 
+          roll_no, 
+          class_id, 
+          classes(grade, section)
+        )
+      `)
+      .order('month', { ascending: false });
+    
+    if (error) throw error;
+    return data || [];
   }
 
   static async deleteTask(taskId: string) {

@@ -19,7 +19,7 @@ export const EnrollStudentModal: React.FC<EnrollStudentModalProps> = ({
   onClose,
   onSubmit,
 }) => {
-  const grades = Array.from({ length: 10 }, (_, i) => i + 1);
+
 
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 overflow-y-auto">
@@ -64,9 +64,19 @@ export const EnrollStudentModal: React.FC<EnrollStudentModalProps> = ({
                     className="w-full p-5 bg-slate-50 border border-slate-100 rounded-2xl outline-none appearance-none focus:bg-white focus:ring-4 focus:ring-emerald-500/5 focus:border-emerald-500/20 transition-all font-bold cursor-pointer"
                   >
                     <option value="">Select Grade</option>
-                    {classes.filter(c => grades.includes(parseInt(c.grade))).map(c => (
-                      <option key={c.id} value={c.id}>Grade {c.grade} - {c.section}</option>
-                    ))}
+                    {classes
+                      .sort((a, b) => {
+                        const numA = parseInt(a.grade);
+                        const numB = parseInt(b.grade);
+                        if (!isNaN(numA) && !isNaN(numB)) {
+                          if (numA !== numB) return numA - numB;
+                          return a.section.localeCompare(b.section);
+                        }
+                        return a.grade.localeCompare(b.grade);
+                      })
+                      .map(c => (
+                        <option key={c.id} value={c.id}>Grade {c.grade} - {c.section}</option>
+                      ))}
                   </select>
                   <ChevronRight className="absolute right-5 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-300 pointer-events-none rotate-90" />
                 </div>

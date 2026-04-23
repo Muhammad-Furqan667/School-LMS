@@ -21,7 +21,7 @@ export const StudentFilters: React.FC<StudentFiltersProps> = ({
   setShowOnlyDues,
   classes,
 }) => {
-  const grades = Array.from({ length: 10 }, (_, i) => i + 1);
+
 
   return (
     <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm flex flex-col xl:flex-row gap-4">
@@ -45,9 +45,19 @@ export const StudentFilters: React.FC<StudentFiltersProps> = ({
             className="w-full sm:w-auto pl-11 pr-10 py-4 bg-slate-50/50 border border-slate-100 rounded-[1.25rem] outline-none appearance-none font-bold text-sm text-slate-600 min-w-[160px] cursor-pointer hover:bg-white transition-colors"
           >
             <option value="">All Grades</option>
-            {classes.filter(c => grades.includes(parseInt(c.grade))).map(c => (
-              <option key={c.id} value={c.id}>Grade {c.grade} - {c.section}</option>
-            ))}
+            {classes
+              .sort((a, b) => {
+                const numA = parseInt(a.grade);
+                const numB = parseInt(b.grade);
+                if (!isNaN(numA) && !isNaN(numB)) {
+                  if (numA !== numB) return numA - numB;
+                  return a.section.localeCompare(b.section);
+                }
+                return a.grade.localeCompare(b.grade);
+              })
+              .map(c => (
+                <option key={c.id} value={c.id}>Grade {c.grade} - {c.section}</option>
+              ))}
           </select>
           <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300 pointer-events-none rotate-90" />
         </div>
