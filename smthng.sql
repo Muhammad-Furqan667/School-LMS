@@ -30,16 +30,6 @@ CREATE TABLE public.classes (
   CONSTRAINT classes_pkey PRIMARY KEY (id),
   CONSTRAINT classes_academic_year_id_fkey FOREIGN KEY (academic_year_id) REFERENCES public.academic_years(id)
 );
-CREATE TABLE public.coupons (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  code text NOT NULL,
-  subject_id uuid,
-  discount_percent integer CHECK (discount_percent > 0 AND discount_percent <= 100),
-  expiry_date timestamp with time zone,
-  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
-  CONSTRAINT coupons_pkey PRIMARY KEY (id),
-  CONSTRAINT coupons_subject_id_fkey FOREIGN KEY (subject_id) REFERENCES public.subjects(id)
-);
 CREATE TABLE public.diary (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   assignment_id uuid,
@@ -110,7 +100,6 @@ CREATE TABLE public.profiles (
   phone_number text,
   is_active boolean DEFAULT true,
   created_at timestamp with time zone DEFAULT now(),
-  password text DEFAULT 'Password123!'::text,
   CONSTRAINT profiles_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.results (

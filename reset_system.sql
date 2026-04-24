@@ -19,7 +19,6 @@ TRUNCATE TABLE public.fees CASCADE;
 TRUNCATE TABLE public.enrollments CASCADE;
 
 -- 3. Clear Structural & Identity Data
-DROP TABLE IF EXISTS public.coupons CASCADE;
 TRUNCATE TABLE public.student_class_history CASCADE;
 TRUNCATE TABLE public.students CASCADE;
 TRUNCATE TABLE public.parents CASCADE;

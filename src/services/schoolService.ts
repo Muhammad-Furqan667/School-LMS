@@ -1,4 +1,5 @@
 import { supabase as libSupabase } from '../lib/supabase';
+import { supabaseAdmin } from '../lib/supabaseAdmin';
 const supabase = libSupabase as any;
 import type { TablesInsert } from '../types/database';
 
@@ -522,19 +523,30 @@ export class SchoolService {
    * @param {string} password - The user's password.
    */
   static async signIn(username: string, password: string) {
-    // Custom absolute manual Auth - Enforce Lowercase!
-    let searchUsername = username.includes('@') ? username.split('@')[0] : username;
-    searchUsername = searchUsername.toLowerCase().trim();
-      
-    const { data: profile, error } = await supabase
+    // 1. Automatically handle the @school.com suffix with sanitization
+    let rawId = username.includes('@') ? username.split('@')[0] : username;
+    // Remove all spaces and special characters that are invalid in an email prefix
+    rawId = rawId.toLowerCase().trim().replace(/[^a-z0-9]/g, '_');
+    const email = `${rawId}@school.com`;
+
+    console.log('Attempting login with virtual email:', email);
+
+    // 2. Real Supabase Authentication (Password is stored ONLY in Supabase Auth)
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (authError) throw authError;
+
+    // 3. Fetch Profile
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('*')
-      .ilike('username', searchUsername)
-      .eq('password', password)
-      .maybeSingle();
-      
-    if (error) throw error;
-    if (!profile) throw new Error('Invalid credentials. Check your username and password.');
+      .eq('id', authData.user.id)
+      .single();
+
+    if (profileError) throw new Error('Identity record not found. Please contact support.');
 
     localStorage.setItem('custom_user_id', profile.id);
     return profile;
@@ -542,22 +554,31 @@ export class SchoolService {
 
   static async signOut() {
     localStorage.removeItem('custom_user_id');
-    // Also try clearing supabase just in case there's a leftover session
-    await supabase.auth.signOut().catch(() => {});
+    await supabase.auth.signOut();
     window.location.href = '/login';
   }
 
   static async generateAccount(username: string, password: string, role: 'admin' | 'teacher' | 'parent') {
-    // Ripping out Supabase auth. Just pushing straight to DB.
-    // Enforce lowercase system-wide
-    let rawUsername = username.includes('@') ? username.split('@')[0] : username;
-    rawUsername = rawUsername.toLowerCase().trim();
+    let rawId = username.includes('@') ? username.split('@')[0] : username;
+    rawId = rawId.toLowerCase().trim().replace(/[^a-z0-9]/g, '_');
+    const email = `${rawId}@school.com`;
     
+    // 1. Create real Supabase Auth user using the ISOLATED client.
+    // This client does NOT persist the session, so it will NOT log out the admin.
+    const { data: authData, error: authError } = await supabaseAdmin.auth.signUp({
+      email,
+      password,
+    });
+
+    if (authError) throw authError;
+    if (!authData.user) throw new Error('Failed to create authentication record.');
+
+    // 2. Create Profile linked to the Auth User ID
     const { data: profileData, error: profileError } = await supabase
       .from('profiles')
       .insert({
-        username: rawUsername,
-        password: password,
+        id: authData.user.id,
+        username: rawId,
         role: role,
         is_active: true
       })
@@ -565,9 +586,8 @@ export class SchoolService {
       .single();
 
     if (profileError) {
-      if (profileError.message.includes('duplicate key value')) {
-        throw new Error('This account (Roll No / ID) is already registered.');
-      }
+      // We can't delete the user via anon key if profile fails, 
+      // but the record is now safely in auth.users.
       throw profileError;
     }
     

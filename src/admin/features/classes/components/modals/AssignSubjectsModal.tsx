@@ -57,7 +57,14 @@ export const AssignSubjectsModal: React.FC<AssignSubjectsModalProps> = ({
                 className="w-full p-4 bg-white border border-slate-200 rounded-xl outline-none font-black text-xs cursor-pointer focus:ring-2 focus:ring-indigo-600 transition-all appearance-none"
               >
                 <option value="">Select Subject</option>
-                {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                {subjects
+                  .filter(s => {
+                    // If no grade level specified, show it everywhere
+                    if (!s.grade_level) return true;
+                    // Match grade level (handle numeric string comparison)
+                    return s.grade_level.toString() === selectedClass.grade.replace(/[^0-9]/g, '');
+                  })
+                  .map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </div>
             <div>

@@ -4,6 +4,7 @@ import Login from './pages/Login';
 import Layout from './components/Layout';
 import { SchoolService } from './services/schoolService';
 import { useEffect, useState } from 'react';
+import { supabase } from './lib/supabase';
 
 import type { Tables } from './types/database';
 
@@ -14,7 +15,6 @@ import AdminDashboard from './pages/admin/Dashboard';
 import { CourseConsole } from './pages/admin/CourseConsole';
 import { ClassConsole } from './pages/admin/ClassConsole';
 import { AttendanceConsole } from './pages/admin/AttendanceConsole';
-import { SystemAudit } from './pages/admin/SystemAudit';
 import StudentFeeCard from './pages/admin/StudentFeeCard';
 import PromotionConsole from './pages/admin/PromotionConsole';
 import StudentProfilePage from './pages/admin/StudentProfilePage';
@@ -29,16 +29,28 @@ function App() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const customUserId = localStorage.getItem('custom_user_id');
-    
-    if (customUserId) {
-      setSession(true); // Dummy session
-      fetchProfile(customUserId);
-    } else {
-      setSession(null);
-      setProfile(null);
-      setLoading(false);
-    }
+    // 1. Check current session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session?.user) {
+        fetchProfile(session.user.id);
+      } else {
+        setLoading(false);
+      }
+    });
+
+    // 2. Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      if (session?.user) {
+        fetchProfile(session.user.id);
+      } else {
+        setProfile(null);
+        setLoading(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const fetchProfile = async (userId: string) => {
@@ -47,7 +59,7 @@ function App() {
       const data = await SchoolService.getProfile(userId);
       setProfile(data);
       if (data?.role === 'admin') {
-        SchoolService.ensureCurrentSession(); // Non-blocking
+        SchoolService.ensureCurrentSession();
       }
       setError(null);
     } catch (error: any) {
