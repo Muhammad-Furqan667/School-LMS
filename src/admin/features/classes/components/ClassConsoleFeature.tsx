@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Plus } from 'lucide-react';
 import { useClassesData } from '../hooks/useClassesData';
 import { useTimetableData } from '../hooks/useTimetableData';
-import { useAttendanceData } from '../hooks/useAttendanceData';
 import { useTeachersData } from '../../teachers/hooks/useTeachersData';
 import { useAssignmentsData } from '../hooks/useAssignmentsData';
 
@@ -35,14 +34,6 @@ export const ClassConsoleFeature: React.FC = () => {
     handleAddTimetableSlot, 
     handleDeleteSlot 
   } = useTimetableData();
-  const { 
-    classStudents, 
-    assignments: attendanceAssignments, 
-    classAttendance, 
-    loading: _attendanceLoading, 
-    fetchAttendanceData, 
-    handleUpdateAttendance 
-  } = useAttendanceData();
 
   // Modals state
   const [isClassModalOpen, setIsClassModalOpen] = useState(false);
@@ -56,7 +47,6 @@ export const ClassConsoleFeature: React.FC = () => {
 
   // Forms state
   const [classForm, setClassForm] = useState<ClassFormState>({ grade: '', section: '', class_teacher_id: '', academic_year_id: '' });
-  const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
   const [timetableForm, setTimetableForm] = useState<TimetableFormState>({
     assignment_id: '',
     day_of_week: 'Monday',

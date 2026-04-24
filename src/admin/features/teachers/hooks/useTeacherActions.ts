@@ -12,7 +12,8 @@ export const useTeacherActions = (fetchAll: () => void) => {
       setLoading(true);
       const res = await SchoolService.upsertTeacher({
         full_name: hireForm.full_name,
-        salary: hireForm.salary
+        salary: hireForm.salary,
+        profile_picture_url: hireForm.profile_picture_url || null
       });
       await SchoolService.upsertTeacherAccess(res.id, hireForm.username, hireForm.password);
 
@@ -43,7 +44,8 @@ export const useTeacherActions = (fetchAll: () => void) => {
       await SchoolService.updateTeacher(selectedTeacher.id, {
         full_name: editForm.full_name,
         salary: editForm.salary,
-        joined_at: editForm.joined_at ? new Date(editForm.joined_at).toISOString() : null
+        joined_at: editForm.joined_at ? new Date(editForm.joined_at).toISOString() : null,
+        profile_picture_url: editForm.profile_picture_url || null
       });
 
       // 2. Update Profile Credentials if needed

@@ -1,81 +1,149 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-@theme {
-  --color-primary: #059669;
-  --color-primary-hover: #047857;
-  --color-bg-slate: #f8fafc;
-  --color-surface: #ffffff;
-  --color-alert: #dc2626;
-}
-
-:root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow: rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
-
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
-
-  font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-  background-color: #f8fafc;
-  color: #1e293b;
-}
-
-body {
-  margin: 0;
-  min-height: 100vh;
-}
-
-#root {
-  min-height: 100vh;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0f172a;
-    --text: #94a3b8;
-    --text-h: #f1f5f9;
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-900 antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 }
 
+/* Custom Scrollbar for Premium Feel */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  @apply bg-slate-100;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  @apply bg-slate-300 rounded-full hover:bg-slate-400 transition-colors;
+}
+
+/* Glassmorphism Utilities */
+.glass-panel {
+  @apply bg-white/70 backdrop-blur-xl border border-white/20 shadow-2xl;
+}
+
+/* Animations */
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0px); }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+/* Responsive Printable Engine v3.1 */
 @media print {
+  /* Hide EVERYTHING by default */
   body * {
-    visibility: hidden;
+    visibility: hidden !important;
   }
-  .fixed.inset-0, .fixed.inset-0 * {
-    visibility: visible;
+
+  /* Show ONLY the printable-area and its recursive children */
+  .printable-area,
+  .printable-area * {
+    visibility: visible !important;
   }
-  .fixed.inset-0 {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: auto;
-    overflow: visible;
-    background: white !important;
-  }
-  button, .absolute.left-8, .absolute.right-8, .relative input, .relative .Search {
+
+  /* RE-HIDE elements that are explicitly meant to be hidden in print */
+  .no-print,
+  .no-print *,
+  .print\:hidden,
+  .print\:hidden *,
+  [class*="print:hidden"],
+  [class*="print:hidden"] * {
     display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
   }
-  .bg-slate-900 {
-    background-color: #0f172a !important;
-    -webkit-print-color-adjust: exact;
+
+  /* Position the printable area at the absolute top of the page */
+  .printable-area {
+    position: static !important;
+    width: 100% !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: white !important;
+    display: block !important;
+    box-shadow: none !important;
+    border: none !important;
+    max-width: none !important;
   }
+
+  /* Force all parents of printable-area to be visible and non-clipping */
+  .printable-area:parents {
+     overflow: visible !important;
+     display: block !important;
+  }
+
+  /* Standard Print Reset */
+  html, body, #root {
+    margin: 0 !important;
+    padding: 0 !important;
+    height: auto !important;
+    min-height: auto !important;
+    overflow: visible !important;
+    width: 100% !important;
+  }
+
+  /* High-Contrast Printing Engine */
+  .text-slate-400, .text-slate-500, .text-slate-600 {
+    color: #000 !important;
+    font-weight: 800 !important;
+  }
+
   .text-white {
-    color: #ffffff !important;
+    color: #fff !important;
   }
-  .bg-emerald-600 {
-    background-color: #059669 !important;
-    -webkit-print-color-adjust: exact;
+
+  .bg-slate-900, .bg-indigo-900 {
+    background-color: #0f172a !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide UI Noise specifically */
+  button,
+  .Search,
+  input,
+  select,
+  nav,
+  .backdrop-blur-xl,
+  .backdrop-blur-md {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* Page Break Stability */
+  tr, section, .bg-white.rounded-\[2\.5rem\], .bg-white.rounded-\[3rem\] {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    margin-bottom: 20px !important;
+  }
+
+  /* Force background colors */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-scheme: light !important;
+  }
+
+  #root, body {
+    height: auto !important;
+    min-height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* Image Print Optimization */
+  img {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    max-width: 100% !important;
   }
 }

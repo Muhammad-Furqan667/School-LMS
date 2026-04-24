@@ -77,7 +77,8 @@ USING (true) WITH CHECK (true);
 
 -- 5. ATTENDANCE SYSTEM REPAIR
 ALTER TABLE public.attendance 
-ADD COLUMN IF NOT EXISTS assignment_id uuid;
+ADD COLUMN IF NOT EXISTS assignment_id uuid,
+ADD COLUMN IF NOT EXISTS marking_time time DEFAULT now();
 
 DO $$ 
 BEGIN 
@@ -302,5 +303,71 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- 13. INDEX FOR PERFORMANCE
 CREATE UNIQUE INDEX IF NOT EXISTS results_student_assessment_idx ON public.results (student_id, assessment_id);
+
+-- 14. ROBUST STUDENT ATTENDANCE UPSERT
+CREATE OR REPLACE FUNCTION public.upsert_student_attendance(
+    attendance_json jsonb
+) RETURNS void AS $$
+DECLARE
+    item jsonb;
+    v_assignment_id uuid;
+BEGIN
+    FOR item IN SELECT * FROM jsonb_array_elements(attendance_json)
+    LOOP
+        v_assignment_id := (NULLIF(item->>'assignment_id', ''))::uuid;
+
+        IF v_assignment_id IS NOT NULL THEN
+            -- Subject-specific attendance
+            INSERT INTO public.attendance (
+                student_id, 
+                assignment_id, 
+                date, 
+                status, 
+                marking_time
+            ) 
+            VALUES (
+                (item->>'student_id')::uuid,
+                v_assignment_id,
+                (item->>'date')::date,
+                (item->>'status'),
+                (COALESCE(item->>'marking_time', now()::text))::time
+            )
+            ON CONFLICT (student_id, date, assignment_id) 
+            WHERE assignment_id IS NOT NULL
+            DO UPDATE SET 
+                status = EXCLUDED.status,
+                marking_time = EXCLUDED.marking_time;
+        ELSE
+            -- Section Moderator / Manual Daily Attendance
+            INSERT INTO public.attendance (
+                student_id, 
+                assignment_id,
+                date, 
+                status, 
+                marking_time
+            )
+            VALUES (
+                (item->>'student_id')::uuid,
+                NULL,
+                (item->>'date')::date,
+                (item->>'status'),
+                (COALESCE(item->>'marking_time', now()::text))::time
+            )
+            ON CONFLICT (student_id, date) WHERE assignment_id IS NULL
+            DO UPDATE SET 
+                status = EXCLUDED.status,
+                marking_time = EXCLUDED.marking_time;
+        END IF;
+    END LOOP;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Ensure indexes exist for the ON CONFLICT clauses used above
+CREATE UNIQUE INDEX IF NOT EXISTS idx_attendance_subject ON public.attendance (student_id, date, assignment_id) WHERE assignment_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_attendance_moderator ON public.attendance (student_id, date) WHERE assignment_id IS NULL;
+
+-- Add profile_picture_url to students and teachers
+ALTER TABLE public.students ADD COLUMN IF NOT EXISTS profile_picture_url text;
+ALTER TABLE public.teachers ADD COLUMN IF NOT EXISTS profile_picture_url text;
 
 -- Done! Refresh your application after running this.

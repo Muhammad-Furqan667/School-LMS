@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { 
   ArrowLeft, 
@@ -9,17 +9,27 @@ import {
   AlertCircle,
   CheckCircle2,
   TrendingUp,
-  MapPin
+  MapPin,
+  Plus,
+  MinusCircle,
+  X
 } from 'lucide-react';
 import { useFeeHistory } from '../hooks/useFeeHistory';
 import { FeeCardHeader } from './FeeCardHeader';
 import { FeeStatsBar } from './FeeStatsBar';
 import { FeeLedgerTable } from './FeeLedgerTable';
 import { SchoolService } from '../../../../services/schoolService';
+import { toast } from 'sonner';
 
 export const StudentFeeCardFeature: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { student, fees, loading, stats, fetchStudentData } = useFeeHistory(id);
+  
+  // Adjustment Modal State
+  const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false);
+  const [selectedFee, setSelectedFee] = useState<any>(null);
+  const [adjustment, setAdjustment] = useState({ category: '', amount: '' });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handlePrint = () => {
     window.print();
@@ -27,15 +37,33 @@ export const StudentFeeCardFeature: React.FC = () => {
 
   const handleUpdateStatus = async (feeId: string, amount: number) => {
     try {
-      const fee = fees.find(f => f.id === feeId);
-      if (!fee) return;
-
       await SchoolService.updateFeeStatus(feeId, 'Paid', amount);
-      
-      // Refresh data
+      toast.success('Fee marked as paid');
       if (id) fetchStudentData(id);
     } catch (error) {
-      console.error('Failed to update fee status:', error);
+      toast.error('Failed to update fee status');
+    }
+  };
+
+  const handleAdjustFee = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedFee || !adjustment.category || !adjustment.amount) return;
+    
+    setIsSubmitting(true);
+    try {
+      await SchoolService.addFeeAdjustment(
+        selectedFee.id, 
+        adjustment.category, 
+        Number(adjustment.amount)
+      );
+      toast.success('Fee adjusted successfully');
+      setIsAdjustModalOpen(false);
+      setAdjustment({ category: '', amount: '' });
+      if (id) fetchStudentData(id);
+    } catch (error) {
+      toast.error('Failed to adjust fee');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -51,80 +79,8 @@ export const StudentFeeCardFeature: React.FC = () => {
   if (!student) return null;
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4 md:p-10 animate-in fade-in duration-500">
+    <div className="min-h-screen bg-slate-50 p-4 md:p-10 animate-in fade-in duration-700">
       <div className="max-w-5xl mx-auto space-y-8">
-      <style dangerouslySetInnerHTML={{ __html: `
-        @media print {
-          @page { size: A4; margin: 10mm; }
-          body { background: white !important; color: black !important; }
-          .print\\:hidden, .no-print, button, nav, .flex.gap-3 { display: none !important; }
-          
-          #fee-card-printable { 
-            border: none !important; 
-            box-shadow: none !important; 
-            margin: 0 !important; 
-            padding: 0 !important;
-            width: 100% !important;
-            display: block !important;
-          }
-
-          /* Force colors and backgrounds for printing */
-          * { 
-            -webkit-print-color-adjust: exact !important; 
-            print-color-adjust: exact !important; 
-            color-scheme: light !important;
-          }
-
-          .bg-slate-900 { 
-            background: white !important; 
-            color: black !important; 
-            border-bottom: 3px solid black !important; 
-          }
-          
-          .text-white, .text-white\\/60, .text-emerald-400 { 
-            color: black !important; 
-          }
-
-          .bg-emerald-600, .bg-emerald-500 {
-            background: #f0fdf4 !important;
-            color: #166534 !important;
-            border: 1px solid #bbf7d0 !important;
-          }
-
-          .bg-slate-50, .bg-slate-100 {
-            background: white !important;
-            border: 1px solid #e2e8f0 !important;
-          }
-
-          .rounded-\\[3rem\\], .rounded-\\[2\\.5rem\\], .rounded-2xl { 
-            border-radius: 4px !important; 
-          }
-
-          table { 
-            width: 100% !important; 
-            border-collapse: collapse !important;
-            margin-top: 20px !important;
-          }
-          
-          th, td { 
-            border: 1px solid #e2e8f0 !important;
-            padding: 8px !important;
-            color: black !important;
-          }
-
-          th { background: #f8fafc !important; }
-
-          .print-copy-label { 
-            display: block !important; 
-            font-size: 24pt; 
-            font-weight: bold; 
-            text-align: center;
-            margin-bottom: 20px;
-            border-bottom: 2px solid black;
-            padding-bottom: 10px;
-          }
-        }
-      `}} />
         {/* Header - Non-Printable */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 print:hidden">
           <Link 
@@ -148,7 +104,7 @@ export const StudentFeeCardFeature: React.FC = () => {
         </div>
 
         {/* The Actual Fee Card Container */}
-        <div id="fee-card-printable" className="bg-white rounded-[3rem] border border-slate-200 shadow-2xl shadow-slate-200/50 overflow-hidden print:border-0 print:shadow-none print:m-0">
+        <div id="fee-card-printable" className="bg-white rounded-[3.5rem] border border-slate-200 shadow-2xl shadow-slate-200/50 overflow-hidden print:overflow-visible printable-area">
           <FeeCardHeader student={student} />
           <FeeStatsBar totalDue={stats.totalDue} totalPaid={stats.totalPaid} pending={stats.pending} />
 
@@ -207,6 +163,10 @@ export const StudentFeeCardFeature: React.FC = () => {
               totalDue={stats.totalDue} 
               totalPaid={stats.totalPaid} 
               onUpdateStatus={handleUpdateStatus}
+              onAdjust={(fee) => {
+                setSelectedFee(fee);
+                setIsAdjustModalOpen(true);
+              }}
             />
 
             {/* Footer Institutional Stamps */}
@@ -240,6 +200,81 @@ export const StudentFeeCardFeature: React.FC = () => {
            EDU-LINK SMS v4.2 · Internal ID: {id}
         </div>
       </div>
+
+      {/* Fee Adjustment Modal */}
+      {isAdjustModalOpen && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md" onClick={() => setIsAdjustModalOpen(false)} />
+          <div className="relative bg-white rounded-[2.5rem] w-full max-w-md shadow-2xl p-10 animate-in zoom-in-95 duration-200">
+             <div className="flex justify-between items-start mb-8">
+               <div>
+                  <h2 className="text-2xl font-black">Fee Adjustment</h2>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Add charges or deductions for {selectedFee?.month}</p>
+               </div>
+               <button onClick={() => setIsAdjustModalOpen(false)} className="p-2 bg-slate-50 rounded-xl text-slate-400 hover:text-red-500 transition-colors">
+                  <X className="h-5 w-5" />
+               </button>
+             </div>
+             
+             <form onSubmit={handleAdjustFee} className="space-y-6">
+                <div>
+                   <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">Adjustment Category</label>
+                   <div className="flex flex-wrap gap-2 mb-4">
+                      {['Kinship Off', 'Orphan Off', 'Scholarship', 'Fine', 'Late Fee', 'Library Fine'].map(cat => (
+                        <button 
+                          key={cat}
+                          type="button"
+                          onClick={() => setAdjustment({...adjustment, category: cat})}
+                          className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-tight transition-all border ${
+                            adjustment.category === cat ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-400 border-slate-100 hover:border-slate-300'
+                          }`}
+                        >
+                          {cat}
+                        </button>
+                      ))}
+                   </div>
+                   <input 
+                     required
+                     value={adjustment.category}
+                     onChange={(e) => setAdjustment({...adjustment, category: e.target.value})}
+                     className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-bold focus:ring-4 focus:ring-indigo-500/5 transition-all"
+                     placeholder="Or type custom category..."
+                   />
+                </div>
+
+                <div>
+                   <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">Amount (PKR)</label>
+                   <div className="relative">
+                      <input 
+                        required
+                        type="number"
+                        value={adjustment.amount}
+                        onChange={(e) => setAdjustment({...adjustment, amount: e.target.value})}
+                        className={`w-full p-4 pl-12 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-black focus:ring-4 transition-all ${
+                          Number(adjustment.amount) < 0 ? 'text-red-600 focus:ring-red-500/5' : 'text-slate-900 focus:ring-indigo-500/5'
+                        }`}
+                        placeholder="0"
+                      />
+                      <div className="absolute left-4 top-1/2 -translate-y-1/2">
+                         {Number(adjustment.amount) < 0 ? <MinusCircle className="h-5 w-5 text-red-500" /> : <Plus className="h-5 w-5 text-slate-400" />}
+                      </div>
+                   </div>
+                   <p className="mt-2 text-[9px] text-slate-400 font-bold uppercase tracking-widest italic">
+                     * Enter a negative value (e.g. -500) for deductions/discounts.
+                   </p>
+                </div>
+
+                <button 
+                  type="submit" 
+                  disabled={isSubmitting}
+                  className="w-full py-4 bg-slate-900 text-white font-black rounded-2xl hover:bg-emerald-600 disabled:bg-slate-400 disabled:cursor-not-allowed transition-all shadow-xl shadow-slate-200"
+                >
+                   {isSubmitting ? 'Processing...' : 'Apply Adjustment'}
+                </button>
+             </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

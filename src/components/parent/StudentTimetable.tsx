@@ -21,7 +21,7 @@ export const StudentTimetable: React.FC<StudentTimetableProps> = ({ timetable = 
   });
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 printable-area">
       <div className="flex items-center justify-between px-2">
         <div>
           <h3 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Weekly Academic Schedule</h3>
@@ -64,10 +64,12 @@ export const StudentTimetable: React.FC<StudentTimetableProps> = ({ timetable = 
                        </div>
                        <div>
                           <p className="text-sm font-black text-slate-900">{slot.assignment?.subject?.name}</p>
-                          <div className="flex items-center gap-1 text-[10px] text-slate-400 font-bold uppercase">
-                             <User className="h-3 w-3" />
-                             {slot.assignment?.teacher?.full_name}
-                          </div>
+                          {slot.assignment?.teacher?.full_name && (
+                            <div className="flex items-center gap-1 text-[10px] text-slate-400 font-bold uppercase">
+                               <User className="h-3 w-3" />
+                               {slot.assignment?.teacher?.full_name}
+                            </div>
+                          )}
                        </div>
                     </div>
                     <div className="flex items-center gap-2 pt-3 border-t border-slate-100/50">

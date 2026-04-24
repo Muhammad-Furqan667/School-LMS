@@ -31,6 +31,7 @@ export interface HireFormState {
   salary: number;
   subject_id: string;
   class_id: string;
+  profile_picture_url?: string;
 }
 
 export interface EditFormState {
@@ -39,6 +40,7 @@ export interface EditFormState {
   username: string;
   password: string;
   joined_at: string;
+  profile_picture_url?: string;
 }
 
 export interface AssignFormState {

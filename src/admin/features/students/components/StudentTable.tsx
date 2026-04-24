@@ -88,13 +88,11 @@ export const StudentTable: React.FC<StudentTableProps> = ({
             {student.name[0]}
           </div>
           <div>
-            <Link 
-              to={`/admin/students/${student.id}`}
-              className="font-black text-slate-900 text-base leading-tight hover:text-emerald-600 transition-colors cursor-pointer"
-              onClick={(e) => e.stopPropagation()}
+            <span 
+              className="font-black text-slate-900 text-base leading-tight hover:text-emerald-600 transition-colors"
             >
               {student.name}
-            </Link>
+            </span>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">S/O: {student.father_name || 'Not Recorded'}</p>
           </div>
         </div>

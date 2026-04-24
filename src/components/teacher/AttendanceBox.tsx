@@ -49,7 +49,8 @@ export const AttendanceBox: React.FC<AttendanceBoxProps> = ({
     return diffHours > 5;
   }, [existingAttendance, isAlreadyMarked]);
 
-  const canEdit = isClassTeacher && isToday && !isLockedByTime;
+  // Allow editing if it's today (within 5h lock) OR if it's a historical record (to allow fixing old info)
+  const canEdit = isClassTeacher && (!isToday || !isLockedByTime);
 
   const currentHour = new Date().getHours();
   const displayHour = String(currentHour).padStart(2, '0');
@@ -160,7 +161,16 @@ export const AttendanceBox: React.FC<AttendanceBoxProps> = ({
               />
            </div>
            <button 
-             onClick={() => onSave?.(attendanceData, markingTime)}
+             onClick={() => {
+               const unMarked = students.filter(s => !attendanceData[s.id]);
+               if (unMarked.length > 0) {
+                 const names = unMarked.slice(0, 2).map(s => s.name).join(', ');
+                 const more = unMarked.length > 2 ? ` and ${unMarked.length - 2} others` : '';
+                 alert(`Incomplete Sheet: Please mark attendance for ${names}${more}. Every student must have a status.`);
+                 return;
+               }
+               onSave?.(attendanceData, markingTime);
+             }}
              disabled={!canEdit}
              className={`flex items-center gap-2 px-6 py-2 font-bold rounded-xl transition-all shadow-lg ${
                canEdit
@@ -170,7 +180,7 @@ export const AttendanceBox: React.FC<AttendanceBoxProps> = ({
            >
               <Save className="h-4 w-4" />
               <span className="hidden sm:inline">
-                {isLockedByTime ? 'Record Locked' : isAlreadyMarked ? 'Update Sheet' : 'Save Sheet'}
+                {isLockedByTime && isToday ? 'Record Locked' : isAlreadyMarked ? 'Update Sheet' : 'Save Sheet'}
               </span>
            </button>
         </div>
@@ -196,36 +206,32 @@ export const AttendanceBox: React.FC<AttendanceBoxProps> = ({
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex items-center justify-center gap-2">
-                    {attendanceData[student.id] ? (
-                      [
-                        { id: 'present', icon: UserCheck, color: 'emerald', label: 'Present' },
-                        { id: 'late', icon: Clock, color: 'amber', label: 'Late' },
-                        { id: 'absent', icon: UserX, color: 'red', label: 'Absent' }
-                      ].map((status) => {
-                        const Icon = status.icon;
-                        const isActive = attendanceData[student.id] === status.id;
-                        const Tag = canEdit ? 'button' : 'div';
-                        return (
-                          <Tag
-                            key={status.id}
-                            onClick={() => canEdit && toggleStatus(student.id, status.id as any)}
-                            title={status.label}
-                            className={`p-2.5 rounded-xl border transition-all flex items-center gap-2 ${
-                              isActive 
-                                ? `bg-${status.color}-50 border-${status.color}-200 text-${status.color}-600 scale-105 shadow-sm` 
-                                : `bg-white border-slate-100 ${canEdit ? 'text-slate-300 hover:border-slate-300' : 'text-slate-200 opacity-20'}`
-                            }`}
-                          >
-                            <Icon className="h-4 w-4" />
-                            {isActive && <span className="text-[10px] font-black uppercase tracking-tighter hidden sm:inline">{status.id}</span>}
-                          </Tag>
-                        );
-                      })
-                    ) : (
-                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-300 bg-slate-50 px-4 py-2 rounded-lg border border-slate-100">
-                        No Record Found
-                      </span>
-                    )}
+                    {[
+                      { id: 'present', icon: UserCheck, color: 'emerald', label: 'Present' },
+                      { id: 'late', icon: Clock, color: 'amber', label: 'Late' },
+                      { id: 'absent', icon: UserX, color: 'red', label: 'Absent' }
+                    ].map((status) => {
+                      const Icon = status.icon;
+                      const currentStatus = attendanceData[student.id];
+                      const isActive = currentStatus === status.id;
+                      const Tag = canEdit ? 'button' : 'div';
+                      
+                      return (
+                        <Tag
+                          key={status.id}
+                          onClick={() => canEdit && toggleStatus(student.id, status.id as any)}
+                          title={status.label}
+                          className={`p-2.5 rounded-xl border transition-all flex items-center gap-2 ${
+                            isActive 
+                              ? `bg-${status.color}-50 border-${status.color}-200 text-${status.color}-600 scale-105 shadow-sm` 
+                              : `bg-white border-slate-100 ${canEdit ? 'text-slate-300 hover:border-slate-300' : 'text-slate-200 opacity-20'}`
+                          }`}
+                        >
+                          <Icon className="h-4 w-4" />
+                          {isActive && <span className="text-[10px] font-black uppercase tracking-tighter hidden sm:inline">{status.id}</span>}
+                        </Tag>
+                      );
+                    })}
                   </div>
                 </td>
               </tr>

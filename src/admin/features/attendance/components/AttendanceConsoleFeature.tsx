@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search } from 'lucide-react';
+import { Search, Calendar, Clock } from 'lucide-react';
 import { useGlobalAttendance } from '../hooks/useGlobalAttendance';
 import { AttendanceLogTable } from './AttendanceLogTable';
 import { AttendanceSummaryCards } from './AttendanceSummaryCards';
@@ -25,21 +25,46 @@ export const AttendanceConsoleFeature: React.FC = () => {
     <div className="space-y-6 md:space-y-8 animate-in fade-in duration-500 pb-10">
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 px-1">
         <div>
-          <h1 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight leading-none">Faculty Attendance</h1>
-          <p className="text-slate-500 font-medium mt-2 md:text-lg">
-            Monitor daily attendance logs for all registered teaching staff.
+          <h1 className="text-4xl md:text-6xl font-black text-slate-900 tracking-tight leading-none">Faculty Hub</h1>
+          <p className="text-slate-500 font-medium mt-3 md:text-lg">
+            Institutional oversight for teaching staff logs and daily attendance metrics.
           </p>
         </div>
-        <div className="flex items-center gap-4 w-full lg:w-auto">
-          <div className="relative group w-full lg:w-48">
-            <input 
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="w-full p-4 bg-white border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-indigo-500/5 font-black text-slate-900 cursor-pointer shadow-sm"
-            />
+      </div>
+
+      {/* Prominent Date Selection Bar */}
+      <div className="bg-slate-900 rounded-[2.5rem] p-8 md:p-10 shadow-2xl shadow-slate-200 relative overflow-hidden group">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
+          <div className="space-y-2">
+            <h2 className="text-2xl font-black text-white flex items-center gap-3">
+              <Calendar className="h-6 w-6 text-indigo-400" />
+              Schedule Context
+            </h2>
+            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest leading-relaxed">
+              Viewing logs for <span className="text-indigo-400">{new Date(date).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</span>
+            </p>
+          </div>
+          
+          <div className="flex items-center gap-4">
+             <div className="relative group">
+                <input 
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  className="bg-white/10 hover:bg-white/20 border border-white/10 rounded-2xl p-5 text-white font-black text-sm outline-none focus:ring-4 focus:ring-indigo-500/20 transition-all cursor-pointer w-full md:w-64 backdrop-blur-md"
+                />
+             </div>
+             <button 
+               onClick={fetchData}
+               className="p-5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl transition-all shadow-lg active:scale-95 group"
+             >
+                <div className="h-5 w-5 animate-in spin-in-180 duration-700">
+                   <Clock className="h-5 w-5" />
+                </div>
+             </button>
           </div>
         </div>
+        <div className="absolute -right-20 -top-20 h-64 w-64 bg-indigo-500/10 blur-[100px] rounded-full" />
       </div>
 
       <AttendanceSummaryCards stats={stats} />
@@ -57,7 +82,12 @@ export const AttendanceConsoleFeature: React.FC = () => {
            </div>
         </div>
         
-        <AttendanceLogTable attendance={filteredAttendance} loading={loading} />
+        <AttendanceLogTable 
+          attendance={filteredAttendance} 
+          loading={loading} 
+          date={date}
+          onRefresh={fetchData}
+        />
       </div>
     </div>
   );

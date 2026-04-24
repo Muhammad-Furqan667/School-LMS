@@ -1,5 +1,7 @@
 import React from 'react';
-import { UserPlus, X } from 'lucide-react';
+import { UserPlus, X, Plus, Camera } from 'lucide-react';
+import { SchoolService } from '../../../../../services/schoolService';
+import { toast } from 'sonner';
 import type { HireFormState } from '../../types/teacher.types';
 
 interface HireTeacherModalProps {
@@ -29,6 +31,36 @@ export const HireTeacherModal: React.FC<HireTeacherModalProps> = ({
         <div className="md:w-56 bg-slate-900 p-10 text-white flex flex-col justify-between border-r border-white/5">
           <div className="h-14 w-14 bg-emerald-600 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/30">
             <UserPlus className="h-7 w-7 text-white" />
+          </div>
+
+          <div className="relative group my-8">
+            <div className="h-32 w-32 bg-white/10 rounded-[2.5rem] overflow-hidden border-2 border-white/20 flex items-center justify-center shadow-2xl transition-all group-hover:scale-105 group-hover:border-white/40">
+              {hireForm.profile_picture_url ? (
+                <img src={hireForm.profile_picture_url} className="h-full w-full object-cover" alt="Profile" />
+              ) : (
+                <Camera className="h-8 w-8 text-white/20" />
+              )}
+              <label className="absolute inset-0 bg-emerald-600/80 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                <Plus className="h-6 w-6 text-white" />
+                <input 
+                  type="file" 
+                  className="hidden" 
+                  accept="image/*"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      try {
+                        const url = await SchoolService.uploadProfilePicture('Teacher', file);
+                        setHireForm({ ...hireForm, profile_picture_url: url });
+                        toast.success('Photo uploaded');
+                      } catch (err) {
+                        toast.error('Upload failed');
+                      }
+                    }
+                  }}
+                />
+              </label>
+            </div>
           </div>
           <div className="mt-10 md:mt-0">
             <h2 className="text-2xl font-black mb-1">Contract Entry</h2>

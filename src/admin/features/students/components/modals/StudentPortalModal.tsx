@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import type { Class, Student, FeeFormState, AcademicResults } from '../../types/student.types';
 import { ProfileTab } from './portal/ProfileTab';
 import { AcademicsTab } from './portal/AcademicsTab';
+import { AttendanceTab } from './portal/AttendanceTab';
 
 interface StudentPortalModalProps {
   selectedStudent: Student;
@@ -35,7 +36,7 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({
   fetchAcademicResults,
   handleUpdateResult,
 }) => {
-  const [activeTab, setActiveTab] = useState<'profile' | 'academics'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'academics' | 'attendance'>('profile');
 
   useEffect(() => {
     if (activeTab === 'academics') {
@@ -88,12 +89,18 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({
             >
               Academics
             </button>
+            <button
+              onClick={() => setActiveTab('attendance')}
+              className={`w-full py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'attendance' ? 'bg-indigo-600 text-white shadow-lg' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}
+            >
+              Attendance
+            </button>
           </div>
         </div>
 
         {/* Modal Content Area */}
         <div className="flex-1 overflow-y-auto p-8 lg:p-12 space-y-8 bg-white custom-scrollbar">
-          {activeTab === 'profile' ? (
+          {activeTab === 'profile' && (
             <ProfileTab
               selectedStudent={selectedStudent}
               studentFees={studentFees}
@@ -104,11 +111,17 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({
               closeDetail={closeDetail}
               fetchAll={fetchAll}
             />
-          ) : (
+          )}
+          {activeTab === 'academics' && (
             <AcademicsTab
               selectedStudent={selectedStudent}
               academicResults={academicResults}
               handleUpdateResult={handleUpdateResult}
+            />
+          )}
+          {activeTab === 'attendance' && (
+            <AttendanceTab
+              selectedStudent={selectedStudent}
             />
           )}
         </div>

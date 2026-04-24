@@ -1,5 +1,7 @@
 import React from 'react';
-import { User, X, ChevronRight, Calendar } from 'lucide-react';
+import { User, X, ChevronRight, Calendar, Plus } from 'lucide-react';
+import { SchoolService } from '../../../../../services/schoolService';
+import { toast } from 'sonner';
 import type { Class, StudentFormState } from '../../types/student.types';
 
 interface EnrollStudentModalProps {
@@ -32,9 +34,40 @@ export const EnrollStudentModal: React.FC<EnrollStudentModalProps> = ({
       <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md" onClick={onClose} />
       <div className="relative bg-white rounded-[3rem] w-full max-w-4xl shadow-2xl p-6 sm:p-12 animate-in zoom-in-95 duration-300 my-8">
         <div className="flex flex-col sm:flex-row justify-between items-start gap-6 mb-10">
-          <div className="flex gap-5">
-            <div className="h-16 w-16 bg-emerald-600 rounded-[1.5rem] flex items-center justify-center shadow-2xl shadow-emerald-500/40">
-              <User className="h-8 w-8 text-white" />
+          <div className="flex flex-col sm:flex-row gap-6">
+            <div className="relative group self-center sm:self-auto">
+               <div className="h-24 w-24 bg-slate-100 rounded-[2rem] overflow-hidden border-4 border-slate-50 flex items-center justify-center shadow-xl transition-all group-hover:scale-105 group-hover:border-emerald-100">
+                  {studentForm.profile_picture_url ? (
+                    <img src={studentForm.profile_picture_url} className="h-full w-full object-cover" alt="Profile" />
+                  ) : (
+                    <div className="flex flex-col items-center">
+                      <User className="h-10 w-10 text-slate-300" />
+                    </div>
+                  )}
+                  <label className="absolute inset-0 bg-emerald-600/60 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                     <Plus className="h-8 w-8 text-white" />
+                     <input 
+                       type="file" 
+                       className="hidden" 
+                       accept="image/*"
+                       onChange={async (e) => {
+                         const file = e.target.files?.[0];
+                         if (file) {
+                           try {
+                             const url = await SchoolService.uploadProfilePicture('Student', file);
+                             setStudentForm({ ...studentForm, profile_picture_url: url });
+                             toast.success('Photo uploaded');
+                           } catch (err) {
+                             toast.error('Upload failed');
+                           }
+                         }
+                       }}
+                     />
+                  </label>
+               </div>
+               <p className="absolute -bottom-2 -right-2 bg-emerald-500 text-white p-1.5 rounded-xl shadow-lg">
+                  <Calendar className="h-3 w-3" />
+               </p>
             </div>
             <div>
               <h2 className="text-3xl font-black text-slate-900 tracking-tight">{studentForm.id ? 'Modify Profile' : 'Student Enrollment'}</h2>
@@ -102,18 +135,36 @@ export const EnrollStudentModal: React.FC<EnrollStudentModalProps> = ({
                  </div>
               </div>
 
-              <div>
-                 <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">Admission Date</label>
-                 <div className="relative">
-                    <Calendar className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 pointer-events-none" />
-                    <input
-                      required
-                      type="date"
-                      value={studentForm.admission_date}
-                      onChange={(e) => setStudentForm({ ...studentForm, admission_date: e.target.value })}
-                      className="w-full p-5 pl-14 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:bg-white focus:ring-4 focus:ring-emerald-500/5 focus:border-emerald-500/20 transition-all font-bold"
-                    />
-                 </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">Admission Date</label>
+                  <div className="relative">
+                      <Calendar className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 pointer-events-none" />
+                      <input
+                        required
+                        type="date"
+                        value={studentForm.admission_date}
+                        onChange={(e) => setStudentForm({ ...studentForm, admission_date: e.target.value })}
+                        className="w-full p-5 pl-14 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:bg-white focus:ring-4 focus:ring-emerald-500/5 focus:border-emerald-500/20 transition-all font-bold"
+                      />
+                  </div>
+                </div>
+                <div>
+                   <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">Institutional Status</label>
+                   <div className="relative group">
+                     <select
+                       required
+                       value={studentForm.status || 'Active'}
+                       onChange={(e) => setStudentForm({ ...studentForm, status: e.target.value })}
+                       className="w-full p-5 bg-slate-50 border border-slate-100 rounded-2xl outline-none appearance-none focus:bg-white focus:ring-4 focus:ring-amber-500/5 focus:border-amber-500/20 transition-all font-bold cursor-pointer"
+                     >
+                       <option value="Active">Active</option>
+                       <option value="Suspended">Suspended</option>
+                       <option value="Left School">Left School</option>
+                     </select>
+                     <ChevronRight className="absolute right-5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300 pointer-events-none rotate-90" />
+                   </div>
+                </div>
               </div>
 
               <div className="space-y-6">

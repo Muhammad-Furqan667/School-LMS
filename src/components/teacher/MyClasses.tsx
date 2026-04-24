@@ -31,6 +31,7 @@ export const MyClasses: React.FC<MyClassesProps> = ({ teacher, assignments }) =>
   const [newAssessment, setNewAssessment] = useState({
     title: '',
     total_marks: '100',
+    passing_marks: '40',
     date: new Date().toISOString().split('T')[0]
   });
 
@@ -73,12 +74,18 @@ export const MyClasses: React.FC<MyClassesProps> = ({ teacher, assignments }) =>
         subject_id: selectedClass.subject_id,
         title: newAssessment.title,
         total_marks: Number(newAssessment.total_marks),
+        passing_marks: Number(newAssessment.passing_marks),
         date: newAssessment.date
       });
       
       toast.success('Assessment category created!');
       setIsAssessmentModalOpen(false);
-      setNewAssessment({ title: '', total_marks: '100', date: new Date().toISOString().split('T')[0] });
+      setNewAssessment({ 
+        title: '', 
+        total_marks: '100', 
+        passing_marks: '40',
+        date: new Date().toISOString().split('T')[0] 
+      });
       
       // Refresh
       const assessData = await SchoolService.getAssessments(teacher.id, selectedClass.class_id, selectedClass.subject_id);
@@ -105,16 +112,22 @@ export const MyClasses: React.FC<MyClassesProps> = ({ teacher, assignments }) =>
   const handleSaveMarks = async () => {
     if (!selectedAssessment) return;
     
-    const results = classStudents.map(student => ({
-      student_id: student.id,
-      assessment_id: selectedAssessment.id,
-      subject_id: selectedClass.subject_id,
-      marks_obtained: Number(marksData[student.id] || 0),
-      total_marks: selectedAssessment.total_marks,
-      grade: calculateGrade(Number(marksData[student.id] || 0), selectedAssessment.total_marks),
-      academic_year_id: selectedClass.class?.academic_year_id,
-      exam_type: 'quiz' // Explicitly set for assessment-based results
-    }));
+    const results = classStudents.map(student => {
+      const obtained = Number(marksData[student.id] || 0);
+      const passMarks = Number(selectedAssessment.passing_marks || selectedAssessment.total_marks * 0.4);
+      
+      return {
+        student_id: student.id,
+        assessment_id: selectedAssessment.id,
+        subject_id: selectedClass.subject_id,
+        marks_obtained: obtained,
+        total_marks: selectedAssessment.total_marks,
+        grade: calculateGrade(obtained, selectedAssessment.total_marks),
+        status: obtained >= passMarks ? 'pass' : 'fail',
+        academic_year_id: selectedClass.class?.academic_year_id,
+        exam_type: 'quiz'
+      };
+    });
 
     try {
       await SchoolService.bulkUpsertResults(results);
@@ -411,7 +424,7 @@ export const MyClasses: React.FC<MyClassesProps> = ({ teacher, assignments }) =>
                      placeholder="e.g. Mid-Term Test #1"
                    />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                    <div>
                       <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">Total Marks</label>
                       <input 
@@ -421,6 +434,17 @@ export const MyClasses: React.FC<MyClassesProps> = ({ teacher, assignments }) =>
                         onChange={(e) => setNewAssessment({...newAssessment, total_marks: e.target.value})}
                         className="w-full p-5 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-bold focus:ring-4 focus:ring-indigo-500/5 transition-all"
                         placeholder="100"
+                      />
+                   </div>
+                   <div>
+                      <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">Pass Marks</label>
+                      <input 
+                        required
+                        type="number"
+                        value={newAssessment.passing_marks}
+                        onChange={(e) => setNewAssessment({...newAssessment, passing_marks: e.target.value})}
+                        className="w-full p-5 bg-emerald-50 border border-emerald-100 rounded-2xl outline-none font-black text-emerald-600 focus:ring-4 focus:ring-emerald-500/10 transition-all"
+                        placeholder="40"
                       />
                    </div>
                    <div>

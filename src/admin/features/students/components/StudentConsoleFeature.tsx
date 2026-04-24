@@ -40,8 +40,9 @@ export const StudentConsoleFeature: React.FC = () => {
     cnic: '',
     parent_cnic: '',
     password: '',
-    admission_date: new Date().toISOString().split('T')[0],
     academic_year_id: '',
+    status: 'Active',
+    profile_picture_url: '',
     id: undefined
   });
 
@@ -98,6 +99,8 @@ export const StudentConsoleFeature: React.FC = () => {
         password: '',
         admission_date: student.admission_date || new Date().toISOString().split('T')[0],
         academic_year_id: student.classes?.academic_year_id || '',
+        status: student.status || 'Active',
+        profile_picture_url: student.profile_picture_url || '',
         id: student.id
       });
     } else {
@@ -111,6 +114,7 @@ export const StudentConsoleFeature: React.FC = () => {
         password: '', 
         admission_date: new Date().toISOString().split('T')[0],
         academic_year_id: '',
+        status: 'Active',
         id: undefined 
       });
     }
@@ -149,7 +153,9 @@ export const StudentConsoleFeature: React.FC = () => {
         father_name: studentForm.father_name,
         cnic: studentForm.cnic,
         parent_cnic: studentForm.parent_cnic,
-        admission_date: studentForm.admission_date
+        admission_date: studentForm.admission_date,
+        status: studentForm.status || 'Active',
+        profile_picture_url: studentForm.profile_picture_url || null
       };
       if (studentForm.id) payload.id = studentForm.id;
 
@@ -171,6 +177,7 @@ export const StudentConsoleFeature: React.FC = () => {
         password: '', 
         admission_date: new Date().toISOString().split('T')[0],
         academic_year_id: '',
+        status: 'Active',
         id: undefined 
       });
       fetchAll();

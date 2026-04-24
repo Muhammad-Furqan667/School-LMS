@@ -1,5 +1,7 @@
 import React from 'react';
-import { X, Edit3, Trash2, DollarSign, Calendar, ShieldCheck, CheckCircle2, BookOpen, ClipboardList, Target } from 'lucide-react';
+import { X, Edit3, Trash2, DollarSign, Calendar, ShieldCheck, CheckCircle2, BookOpen, ClipboardList, Camera, Plus } from 'lucide-react';
+import { SchoolService } from '../../../../../services/schoolService';
+import { toast } from 'sonner';
 import type { Teacher, EditFormState } from '../../types/teacher.types';
 
 interface TeacherDetailModalProps {
@@ -65,8 +67,46 @@ export const TeacherDetailModal: React.FC<TeacherDetailModalProps> = ({
           </button>
 
           <div className="flex flex-col items-center text-center mt-6">
-            <div className="h-24 w-24 bg-white/10 rounded-[2.5rem] border border-white/10 flex items-center justify-center font-black text-4xl mb-6 backdrop-blur-xl shadow-2xl">
-              {selectedTeacher.full_name?.[0] || '?'}
+            <div className="relative group mb-6">
+              <div className="h-24 w-24 bg-white/10 rounded-[2.5rem] border border-white/10 flex items-center justify-center font-black text-4xl backdrop-blur-xl shadow-2xl overflow-hidden group-hover:border-white/30 transition-all">
+                {isEditing ? (
+                  <>
+                    {editForm.profile_picture_url ? (
+                      <img src={editForm.profile_picture_url} className="h-full w-full object-cover" alt="Profile" />
+                    ) : (
+                      <Camera className="h-8 w-8 text-white/20" />
+                    )}
+                    <label className="absolute inset-0 bg-emerald-600/80 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                      <Plus className="h-6 w-6 text-white" />
+                      <input 
+                        type="file" 
+                        className="hidden" 
+                        accept="image/*"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            try {
+                              const url = await SchoolService.uploadProfilePicture('Teacher', file);
+                              setEditForm({ ...editForm, profile_picture_url: url });
+                              toast.success('Photo uploaded');
+                            } catch (err) {
+                              toast.error('Upload failed');
+                            }
+                          }
+                        }}
+                      />
+                    </label>
+                  </>
+                ) : (
+                  <>
+                    {selectedTeacher.profile_picture_url ? (
+                      <img src={selectedTeacher.profile_picture_url} className="h-full w-full object-cover" alt="Profile" />
+                    ) : (
+                      selectedTeacher.full_name?.[0] || '?'
+                    )}
+                  </>
+                )}
+              </div>
             </div>
 
             {isEditing ? (

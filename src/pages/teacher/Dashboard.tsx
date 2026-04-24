@@ -235,9 +235,10 @@ const TeacherDashboard: React.FC = () => {
 
                const records = Object.entries(attendanceData).map(([studentId, status]) => ({
                  student_id: studentId,
-                 assignment_id: asgn.isModeratorAssignment ? null : asgn.id,
+                 // For moderator assignments, use the linked assignment_id if available to avoid NULL conflict issues
+                 assignment_id: asgn.isModeratorAssignment ? (asgn.assignment_id || null) : asgn.id,
                  date: attendanceDate,
-                 marking_time: markingTime,
+                 marking_time: markingTime.length === 5 ? `${markingTime}:00` : markingTime,
                  status
                }));
                try {

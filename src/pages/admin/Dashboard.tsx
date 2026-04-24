@@ -130,7 +130,7 @@ const AdminDashboard: React.FC = () => {
             </div>
             
             <div className="h-72 sm:h-85 w-full relative z-10">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minHeight={300}>
                 <AreaChart data={stats?.revenueTrend || []}>
                   <defs>
                     <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
@@ -174,7 +174,7 @@ const AdminDashboard: React.FC = () => {
               </div>
             </div>
             <div className="h-72 sm:h-80 w-full">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minHeight={320}>
                 <BarChart data={stats?.gradeDistribution || []}>
                   <CartesianGrid strokeDasharray="6 6" vertical={false} stroke="#f1f5f9" />
                   <XAxis 

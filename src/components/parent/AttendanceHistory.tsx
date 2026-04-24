@@ -7,7 +7,7 @@ interface AttendanceHistoryProps {
 
 export const AttendanceHistory: React.FC<AttendanceHistoryProps> = ({ history = [] }) => {
   return (
-    <div className="bg-white rounded-[2.5rem] border border-slate-200 overflow-hidden shadow-sm">
+    <div className="bg-white rounded-[2.5rem] border border-slate-200 overflow-hidden shadow-sm printable-area">
       <div className="p-8 border-b border-slate-100 flex items-center justify-between">
         <div>
           <h3 className="text-xl font-black text-slate-900 tracking-tight">Attendance Logs</h3>

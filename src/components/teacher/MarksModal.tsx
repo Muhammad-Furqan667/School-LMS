@@ -42,16 +42,19 @@ export const MarksModal: React.FC<MarksModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
     try {
+      const marksObtained = parseFloat(marks);
+      const totalMarks = parseFloat(total);
+      
       await SchoolService.upsertResult({
         ...(currentResult?.id ? { id: currentResult.id } : {}),
         student_id: student.id,
         subject_id: assignment.subject_id,
         teacher_id: assignment.teacher_id,
-        marks_obtained: parseFloat(marks),
-        total_marks: parseFloat(total),
+        marks_obtained: marksObtained,
+        total_marks: totalMarks,
         exam_type: examType,
+        status: marksObtained >= (assignment.passing_marks || totalMarks * 0.4) ? 'pass' : 'fail',
         academic_year_id: assignment.class.academic_year_id
       });
       

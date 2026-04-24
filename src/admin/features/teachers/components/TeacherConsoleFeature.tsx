@@ -46,7 +46,8 @@ export const TeacherConsoleFeature: React.FC = () => {
     password: '',
     salary: 0,
     subject_id: '',
-    class_id: ''
+    class_id: '',
+    profile_picture_url: ''
   });
 
   const [editForm, setEditForm] = useState<EditFormState>({
@@ -54,7 +55,8 @@ export const TeacherConsoleFeature: React.FC = () => {
     salary: 0,
     username: '',
     password: '',
-    joined_at: ''
+    joined_at: '',
+    profile_picture_url: ''
   });
 
   const [assignForm, setAssignForm] = useState<AssignFormState>({
@@ -70,7 +72,8 @@ export const TeacherConsoleFeature: React.FC = () => {
       salary: teacher.salary || 0,
       username: '',
       password: '',
-      joined_at: teacher.joined_at ? teacher.joined_at.split('T')[0] : (teacher.created_at ? teacher.created_at.split('T')[0] : '')
+      joined_at: teacher.joined_at ? teacher.joined_at.split('T')[0] : (teacher.created_at ? teacher.created_at.split('T')[0] : ''),
+      profile_picture_url: teacher.profile_picture_url || ''
     });
     setIsEditing(false);
     fetchAssignments(teacher.id);
@@ -86,7 +89,7 @@ export const TeacherConsoleFeature: React.FC = () => {
     e.preventDefault();
     await handleHire(hireForm, () => {
       setIsHireModalOpen(false);
-      setHireForm({ full_name: '', username: '', password: '', salary: 0 });
+      setHireForm({ full_name: '', username: '', password: '', salary: 0, profile_picture_url: '', subject_id: '', class_id: '' });
     });
   };
 

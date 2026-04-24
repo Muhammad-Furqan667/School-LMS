@@ -38,6 +38,8 @@ export interface StudentFormState {
   password?: string;
   admission_date?: string;
   academic_year_id?: string;
+  status?: string;
+  profile_picture_url?: string;
 }
 
 export interface FeeFormState {

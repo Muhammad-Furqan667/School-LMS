@@ -10,6 +10,24 @@ import type { TablesInsert } from '../types/database';
 
 export class SchoolService {
   static supabase = supabase;
+
+  static async uploadProfilePicture(bucket: 'Student' | 'Teacher', file: File) {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
+    const filePath = `${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from(bucket)
+      .upload(filePath, file);
+
+    if (uploadError) throw uploadError;
+
+    const { data: { publicUrl } } = supabase.storage
+      .from(bucket)
+      .getPublicUrl(filePath);
+
+    return publicUrl;
+  }
   /**
    * ACADEMIC YEARS & CLASSES
    */
@@ -97,12 +115,16 @@ export class SchoolService {
     if (classId) query = query.eq('class_id', classId);
     if (parentId) query = query.eq('parent_id', parentId);
     
+    // Only show active students by default
+    query = query.eq('status', 'Active');
+    
     const { data, error } = await query.order('created_at', { ascending: false });
     if (error) {
       console.warn('Student list fetch failed, falling back to basic data:', error.message);
-      let fallbackQuery = supabase.from('students').select('*, classes(*)');
+      let fallbackQuery = supabase.from('students').select('*');
       if (classId) fallbackQuery = fallbackQuery.eq('class_id', classId);
       if (parentId) fallbackQuery = fallbackQuery.eq('parent_id', parentId);
+      fallbackQuery = fallbackQuery.eq('status', 'Active');
       
       const { data: fallback, error: fbError } = await fallbackQuery;
       if (fbError) throw fbError;
@@ -312,6 +334,7 @@ export class SchoolService {
 
     if (assignmentId.startsWith('MOD-')) {
       const classId = assignmentId.replace('MOD-', '');
+      // Use the aliased 'student' for filtering on the inner join
       query = query.is('assignment_id', null).eq('student.class_id', classId);
     } else {
       query = query.eq('assignment_id', assignmentId);
@@ -353,10 +376,8 @@ export class SchoolService {
   }
 
   static async bulkUpsertAttendance(records: any[]) {
-    if (!records || records.length === 0) return;
     const { data, error } = await supabase
-      .from('attendance')
-      .upsert(records, { onConflict: 'student_id,date,assignment_id' });
+      .rpc('upsert_student_attendance', { attendance_json: records });
     if (error) throw error;
     return data;
   }
@@ -378,6 +399,7 @@ export class SchoolService {
       .from('students')
       .select('*, parents(*, profiles(username))')
       .eq('class_id', classId)
+      .eq('status', 'Active')
       .order('name');
     
     if (error) throw error;
@@ -522,6 +544,7 @@ export class SchoolService {
     localStorage.removeItem('custom_user_id');
     // Also try clearing supabase just in case there's a leftover session
     await supabase.auth.signOut().catch(() => {});
+    window.location.href = '/login';
   }
 
   static async generateAccount(username: string, password: string, role: 'admin' | 'teacher' | 'parent') {
@@ -823,23 +846,6 @@ export class SchoolService {
     return data;
   }
 
-  /**
-   * Updates the status and paid amount of a specific fee record.
-   */
-  static async updateFeeStatus(feeId: string, status: string, amountPaid: number) {
-    const { data, error } = await supabase
-      .from('fees')
-      .update({
-        status,
-        amount_paid: amountPaid
-      })
-      .eq('id', feeId)
-      .select()
-      .single();
-    
-    if (error) throw error;
-    return data;
-  }
 
   /**
    * Fetches diary entries for all subjects assigned to a class.
@@ -910,7 +916,7 @@ export class SchoolService {
   static async getResults(studentId?: string, subjectId?: string) {
     let query = supabase
       .from('results')
-      .select('*, subjects(*), students(*), assessment:assessments(*)');
+      .select('*, subject:subjects(*), subjects(*), teacher:teachers(*), teachers(*), students(*), assessment:assessments(*, subject:subjects(*), subjects(*), teacher:teachers(*), teachers(*))');
     
     if (studentId) query = query.eq('student_id', studentId);
     if (subjectId) query = query.eq('subject_id', subjectId);
@@ -1047,7 +1053,8 @@ export class SchoolService {
   static async getDashboardStats() {
     const { data: students, error: errSt } = await supabase
       .from('students')
-      .select('id, class_id, is_locked, created_at, classes(grade)');
+      .select('id, class_id, is_locked, created_at, classes(grade)')
+      .eq('status', 'Active');
     if (errSt) throw errSt;
 
     const { data: teachers, error: errTe } = await supabase
@@ -1362,6 +1369,32 @@ export class SchoolService {
       .eq('id', feeId)
       .select()
       .single();
+    if (error) throw error;
+    return data;
+  }
+
+  static async addFeeAdjustment(feeId: string, category: string, amount: number) {
+    const { data: fee, error: fetchError } = await supabase
+      .from('fees')
+      .select('items, amount_due')
+      .eq('id', feeId)
+      .single();
+    if (fetchError) throw fetchError;
+
+    const currentItems = Array.isArray(fee.items) ? fee.items : [];
+    const newItems = [...currentItems, { category, amount }];
+    const newAmountDue = newItems.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+
+    const { data, error } = await supabase
+      .from('fees')
+      .update({ 
+        items: newItems,
+        amount_due: Math.max(0, newAmountDue)
+      })
+      .eq('id', feeId)
+      .select()
+      .single();
+      
     if (error) throw error;
     return data;
   }

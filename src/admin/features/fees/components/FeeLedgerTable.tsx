@@ -1,14 +1,15 @@
 import React from 'react';
-import { Calendar, Clock } from 'lucide-react';
+import { Calendar } from 'lucide-react';
 
 interface FeeLedgerTableProps {
   fees: any[];
   totalDue: number;
   totalPaid: number;
   onUpdateStatus?: (feeId: string, amount: number) => void;
+  onAdjust?: (fee: any) => void;
 }
 
-export const FeeLedgerTable: React.FC<FeeLedgerTableProps> = ({ fees, totalDue, totalPaid, onUpdateStatus }) => {
+export const FeeLedgerTable: React.FC<FeeLedgerTableProps> = ({ fees, totalDue, totalPaid, onUpdateStatus, onAdjust }) => {
   return (
     <section>
       <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-8 flex items-center gap-3">
@@ -29,15 +30,35 @@ export const FeeLedgerTable: React.FC<FeeLedgerTableProps> = ({ fees, totalDue, 
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
-            {fees.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-8 py-20 text-center">
-                  <p className="text-sm font-black text-slate-300 uppercase tracking-widest italic">No Institutional Ledger Entries</p>
-                </td>
-              </tr>
-            ) : (
-              fees.map((f) => (
-                <tr key={f.id} className="hover:bg-slate-50/50 transition-colors group">
+            {(() => {
+              const months = [
+                "January", "February", "March", "April", "May", "June",
+                "July", "August", "September", "October", "November", "December"
+              ];
+              
+              const currentMonthIndex = new Date().getMonth();
+              
+              const fullLedger = months.map((m, idx) => {
+                const existing = fees.find(f => f.month === m);
+                if (existing) return existing;
+                
+                // If it's a future month with no record, mark it clearly
+                const isFuture = idx > currentMonthIndex;
+                
+                return {
+                  id: m,
+                  month: m,
+                  amount_due: 0,
+                  amount_paid: 0,
+                  status: isFuture ? 'Upcoming' : 'No Bill',
+                  items: [],
+                  isPlaceholder: true,
+                  isFuture
+                };
+              });
+
+              return fullLedger.map((f) => (
+                <tr key={f.id} className={`hover:bg-slate-50/50 transition-colors group ${f.isFuture && f.isPlaceholder ? 'print:hidden' : ''}`}>
                   <td className="px-8 py-5">
                     <p className="font-black text-slate-900 mb-1">{f.month}</p>
                     <div className="flex flex-wrap gap-1">
@@ -52,7 +73,9 @@ export const FeeLedgerTable: React.FC<FeeLedgerTableProps> = ({ fees, totalDue, 
                   <td className="px-8 py-5 text-center">
                     <div className={`mx-auto w-fit px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest border ${
                       f.status?.toLowerCase() === 'paid' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 
-                      f.status?.toLowerCase() === 'partial' ? 'bg-amber-50 text-amber-600 border-amber-100' : 'bg-rose-50 text-rose-600 border-rose-100'
+                      f.status?.toLowerCase() === 'partial' ? 'bg-amber-50 text-amber-600 border-amber-100' : 
+                      f.status === 'Upcoming' || f.status === 'No Bill' ? 'bg-slate-50 text-slate-400 border-slate-100' :
+                      'bg-rose-50 text-rose-600 border-rose-100'
                     }`}>
                       {f.status}
                     </div>
@@ -60,8 +83,16 @@ export const FeeLedgerTable: React.FC<FeeLedgerTableProps> = ({ fees, totalDue, 
                   <td className="px-8 py-5 text-right font-black text-slate-900">
                     PKR {Number(f.amount_paid).toLocaleString()}
                   </td>
-                  <td className="px-8 py-5 text-center print:hidden">
-                    {f.status?.toLowerCase() !== 'paid' && onUpdateStatus && (
+                  <td className="px-8 py-5 text-center flex items-center justify-center gap-2 print:hidden">
+                    {onAdjust && !f.isPlaceholder && (
+                      <button 
+                        onClick={() => onAdjust(f)}
+                        className="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all shadow-sm active:scale-95"
+                      >
+                        Adjust
+                      </button>
+                    )}
+                    {f.status?.toLowerCase() !== 'paid' && !f.isPlaceholder && onUpdateStatus && (
                       <button 
                         onClick={() => onUpdateStatus(f.id, f.amount_due)}
                         className="px-4 py-2 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-lg active:scale-95"
@@ -71,8 +102,8 @@ export const FeeLedgerTable: React.FC<FeeLedgerTableProps> = ({ fees, totalDue, 
                     )}
                   </td>
                 </tr>
-              ))
-            )}
+              ));
+            })()}
           </tbody>
           <tfoot className="bg-[#f8fafc] border-t-2 border-slate-100">
             <tr>

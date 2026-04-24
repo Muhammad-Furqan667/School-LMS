@@ -123,7 +123,7 @@ const ParentDashboard: React.FC = () => {
 
       <Routes>
         <Route path="/" element={<ParentOverview isLocked={isLocked} fees={fees} timetable={timetable} diary={diary} results={results} activeChild={activeChild} parentData={parentData} />} />
-        <Route path="/academics" element={<AcademicHub results={results} attendanceStats={attendanceStats} activeChild={activeChild} />} />
+        <Route path="/academics" element={<AcademicHub results={results} attendanceStats={attendanceStats} attendanceHistory={attendanceHistory} timetable={timetable} activeChild={activeChild} />} />
         <Route path="/attendance" element={<div className="p-6 md:p-10"><h2 className="text-2xl font-black text-slate-900 mb-8 uppercase tracking-tight">Attendance Logs</h2><AttendanceHistory history={attendanceHistory} /></div>} />
         <Route path="/timetable" element={<div className="p-6 md:p-10"><h2 className="text-2xl font-black text-slate-900 mb-8 uppercase tracking-tight">Class Timetable</h2><StudentTimetable timetable={timetable} /></div>} />
         <Route path="/fees" element={<ParentFeesView fees={fees} parentName={parentData?.full_name} />} />
