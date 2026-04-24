@@ -22,7 +22,7 @@ interface ParentOverviewProps {
 }
 
 export const ParentOverview: React.FC<ParentOverviewProps> = ({ 
-  isLocked, fees, timetable, diary, results, activeChild, parentData 
+  isLocked, fees = [], timetable = [], diary = [], results = [], activeChild, parentData 
 }) => {
   const navigate = useNavigate();
 

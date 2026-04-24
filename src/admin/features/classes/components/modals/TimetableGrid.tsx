@@ -53,12 +53,14 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({
                   <div key={time} className="h-16 p-1 relative group">
                     {slot ? (
                       <div className="h-full w-full bg-emerald-50 rounded-lg border border-emerald-100 p-1.5 flex flex-col justify-center relative animate-in zoom-in-95 duration-300">
-                        <button 
-                          onClick={() => handleDeleteSlot(slot.id, selectedClass.id)}
-                          className="absolute -top-1.5 -right-1.5 h-5 w-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg z-10"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
+                        {selectedClass.academic_years?.is_current && (
+                          <button 
+                            onClick={() => handleDeleteSlot(slot.id, selectedClass.id)}
+                            className="absolute -top-1.5 -right-1.5 h-5 w-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg z-10"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        )}
                         <p className="text-[10px] font-bold text-slate-900 truncate tracking-tight">
                           {slot.assignment?.subject?.name}
                         </p>

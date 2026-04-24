@@ -47,3 +47,35 @@ body {
     --text-h: #f1f5f9;
   }
 }
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .fixed.inset-0, .fixed.inset-0 * {
+    visibility: visible;
+  }
+  .fixed.inset-0 {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+    background: white !important;
+  }
+  button, .absolute.left-8, .absolute.right-8, .relative input, .relative .Search {
+    display: none !important;
+  }
+  .bg-slate-900 {
+    background-color: #0f172a !important;
+    -webkit-print-color-adjust: exact;
+  }
+  .text-white {
+    color: #ffffff !important;
+  }
+  .bg-emerald-600 {
+    background-color: #059669 !important;
+    -webkit-print-color-adjust: exact;
+  }
+}

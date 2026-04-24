@@ -36,6 +36,8 @@ export interface StudentFormState {
   cnic: string;
   parent_cnic: string;
   password?: string;
+  admission_date?: string;
+  academic_year_id?: string;
 }
 
 export interface FeeFormState {

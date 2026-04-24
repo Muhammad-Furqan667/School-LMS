@@ -47,7 +47,7 @@ function App() {
       const data = await SchoolService.getProfile(userId);
       setProfile(data);
       if (data?.role === 'admin') {
-        await SchoolService.ensureCurrentSession();
+        SchoolService.ensureCurrentSession(); // Non-blocking
       }
       setError(null);
     } catch (error: any) {
@@ -140,7 +140,6 @@ function App() {
             <Route path="promotions" element={<PromotionConsole />} />
             <Route path="courses" element={<CourseConsole />} />
             <Route path="teachers" element={<TeacherConsole />} />
-            <Route path="audit" element={<SystemAudit />} />
           </Route>
         )}
         <Route path="*" element={<Navigate to="/" />} />

@@ -6,6 +6,7 @@ import type { Class } from '../types/class.types';
 
 export const useClassesData = () => {
   const [classes, setClasses] = useState<Class[]>([]);
+  const [sessions, setSessions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchClasses = async () => {
@@ -13,6 +14,9 @@ export const useClassesData = () => {
     try {
       const data = await SchoolService.getClasses();
       setClasses(data || []);
+      
+      const years = await SchoolService.getAcademicYears();
+      setSessions(years || []);
     } catch {
       toast.error('Failed to load classes');
     } finally {
@@ -24,14 +28,13 @@ export const useClassesData = () => {
     fetchClasses();
   }, []);
 
-  const handleAddClass = async (grade: string, section: string, classTeacherId: string, onSuccess: () => void) => {
+  const handleAddClass = async (grade: string, section: string, classTeacherId: string, sessionId: string, onSuccess: () => void) => {
     try {
-      const { data: years } = await supabase.from('academic_years').select('id').eq('is_current', true).single();
       await SchoolService.upsertClass({
         grade,
         section,
         class_teacher_id: classTeacherId,
-        academic_year_id: years?.id
+        academic_year_id: sessionId
       });
       toast.success('Class created');
       onSuccess();
@@ -62,12 +65,24 @@ export const useClassesData = () => {
     }
   };
 
+  const handleAddSession = async (label: string) => {
+    try {
+      await SchoolService.upsertAcademicYear({ year_label: label, is_current: false });
+      toast.success(`Academic Session ${label} initialized`);
+      fetchClasses();
+    } catch {
+      toast.error('Failed to create session');
+    }
+  };
+
   return {
     classes,
+    sessions,
     loading,
     fetchClasses,
     handleAddClass,
     handleDeleteClass,
-    handleUpdateClass
+    handleUpdateClass,
+    handleAddSession
   };
 };

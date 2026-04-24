@@ -33,21 +33,21 @@ interface TeacherOverviewProps {
 }
 
 export const TeacherOverview: React.FC<TeacherOverviewProps> = ({
-  assignments,
+  assignments = [],
   selectedAssignment,
   setSelectedAssignment,
   diaryContent,
   setDiaryContent,
   handleCreateDiary,
   teacherStats,
-  timetable,
-  teacherTimetable,
-  students,
-  results,
+  timetable = [],
+  teacherTimetable = [],
+  students = [],
+  results = [],
   setActiveStudentForMarks,
   setIsMarksModalOpen,
-  history,
-  tasks,
+  history = [],
+  tasks = [],
   onUpdateTaskStatus
 }) => {
   const navigate = useNavigate();
@@ -65,8 +65,11 @@ export const TeacherOverview: React.FC<TeacherOverviewProps> = ({
   // Build time slots starting from 8 AM and ending between 3 PM and 5 PM based on data
   const timeSlots = (() => {
     const base = [8, 9, 10, 11, 12, 13, 14, 15]; // 08:00 to 15:00 (3 PM)
-    const dataHours = teacherTimetable.map(t => parseInt(t.start_time.split(':')[0]));
-    const maxHour = Math.min(Math.max(...base, ...dataHours), 17); // Max cap at 5 PM
+    const dataHours = (teacherTimetable || [])
+      .map(t => t?.start_time ? parseInt(t.start_time.split(':')[0]) : null)
+      .filter((h): h is number => h !== null);
+    
+    const maxHour = Math.min(Math.max(...base, ...(dataHours.length > 0 ? dataHours : [15])), 17); // Max cap at 5 PM
     
     const slots = [];
     for (let h = 8; h <= maxHour; h++) {
@@ -114,40 +117,91 @@ export const TeacherOverview: React.FC<TeacherOverviewProps> = ({
         </div>
       </div>
 
-      {/* Phase 5: Administrative Directives (Tasks) */}
-      {tasks && tasks.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in slide-in-from-top-4 duration-700">
-          {tasks.map(task => (
-            <div key={task.id} className="group relative bg-white border-2 border-amber-100 rounded-[2.5rem] p-8 shadow-sm hover:shadow-xl transition-all">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-2 px-3 py-1 bg-amber-50 rounded-full text-amber-600 border border-amber-100">
-                  <Target className="h-3 w-3" />
-                  <span className="text-[10px] font-black uppercase tracking-widest leading-none">Admin Directive</span>
+      {/* Moderation & Administrative Hub */}
+      <div className="space-y-12">
+        {tasks && tasks.length > 0 && (
+        <section className="space-y-6">
+          <div className="flex items-center gap-2">
+             <Target className="h-6 w-6 text-amber-500" />
+             <h2 className="text-xl font-bold text-slate-900">Assigned Tasks</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in slide-in-from-top-4 duration-700">
+            {tasks.map(task => (
+              <div key={task.id} className="group relative bg-white border-2 border-slate-100 rounded-[2.5rem] p-8 shadow-sm hover:shadow-xl hover:border-amber-200 transition-all">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Directive Target</span>
+                    <p className="text-xs font-black text-slate-900 uppercase">
+                      Grade {task.assignment?.class?.grade}{task.assignment?.class?.section} • {task.assignment?.subject?.name}
+                    </p>
+                  </div>
+                  <div className={`h-3 w-3 rounded-full ${task.status === 'completed' ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`} title={task.status} />
                 </div>
-                <div className={`h-2 w-2 rounded-full ${task.status === 'completed' ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`} />
-              </div>
-              <h3 className="text-lg font-black text-slate-900 leading-tight tracking-tight mb-4">{task.task_description}</h3>
-              <div className="flex items-center justify-between mt-8 pt-6 border-t border-slate-50">
-                <div className="flex items-center gap-2">
-                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Target: {new Date(task.target_date).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}</p>
+                
+                <div className="bg-slate-50 rounded-2xl p-5 mb-6 border border-slate-100 italic text-sm text-slate-600 leading-relaxed group-hover:bg-white transition-colors">
+                  "{task.task_description}"
                 </div>
-                {task.status === 'pending' && onUpdateTaskStatus && (
-                   <button 
-                     onClick={() => onUpdateTaskStatus(task.id, 'completed')}
-                     className="px-4 py-2 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-emerald-600 transition-all active:scale-95 shadow-lg"
-                   >
-                     Mark Done
-                   </button>
-                )}
+
+                <div className="flex items-center justify-between mt-auto pt-6 border-t border-slate-50">
+                  <div className="flex flex-col gap-1">
+                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Target Date</p>
+                     <p className="text-[10px] font-black text-slate-900 uppercase">{new Date(task.target_date).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}</p>
+                  </div>
+                  {task.status === 'pending' && onUpdateTaskStatus && (
+                     <button 
+                       onClick={() => onUpdateTaskStatus(task.id, 'completed')}
+                       className="px-6 py-2.5 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-emerald-600 transition-all active:scale-95 shadow-lg"
+                     >
+                       Mark Completed
+                     </button>
+                  )}
+                </div>
+                
+                <div className="absolute -right-2 -top-2 opacity-0 group-hover:opacity-100 transition-all pointer-events-none transform group-hover:translate-x-1 group-hover:-translate-y-1">
+                   <div className="bg-amber-100 text-amber-600 p-2 rounded-xl border border-amber-200">
+                      <Plus className="h-4 w-4" />
+                   </div>
+                </div>
               </div>
-              <div className="absolute top-0 right-0 p-8 opacity-[0.03] group-hover:opacity-[0.07] transition-opacity pointer-events-none">
-                <Plus className="h-24 w-24 text-amber-900" />
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </section>
       )}
 
+        {/* Moderation Section */}
+        {assignments.filter(a => a.isModeratorAssignment).length > 0 && (
+          <section className="space-y-6">
+            <div className="flex items-center gap-2 px-2">
+               <Users className="h-6 w-6 text-indigo-600" />
+               <h2 className="text-xl font-bold text-slate-900 uppercase tracking-tight">Moderated Sections</h2>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {assignments.filter(a => a.isModeratorAssignment).map(asgn => (
+                <div key={asgn.id} className="group bg-white border border-slate-100 rounded-[2rem] p-8 shadow-sm hover:border-indigo-600/30 transition-all flex flex-col justify-between h-full">
+                   <div className="flex items-center gap-4 mb-6">
+                      <div className="h-12 w-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600">
+                         <Users className="h-6 w-6" />
+                      </div>
+                      <div>
+                         <h3 className="text-lg font-black text-slate-900 leading-none">Grade {asgn.class?.grade}{asgn.class?.section}</h3>
+                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Section Moderator</p>
+                    </div>
+                 </div>
+                 <button 
+                   onClick={() => {
+                     setSelectedAssignment(asgn.id);
+                     navigate('/teacher/attendance');
+                   }}
+                   className="w-full py-4 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200"
+                 >
+                   Mark Attendance
+                 </button>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
       {/* Main Grid: Diary Form vs Weekly Timetable */}
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
         {/* Left Column: Diary & Stats */}
@@ -171,32 +225,68 @@ export const TeacherOverview: React.FC<TeacherOverviewProps> = ({
                   className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-600 outline-none transition-all text-sm font-bold"
                 >
                   <option value="">Select a class</option>
-                  {assignments.map((asgn) => (
-                    <option key={asgn.id} value={asgn.id}>
-                      Grade {asgn.class.grade}-{asgn.class.section} • {asgn.subject.name}
-                    </option>
-                  ))}
+                  
+                  {assignments
+                    .filter(a => !a.isModeratorAssignment && a.class?.academic_years?.is_current)
+                    .length > 0 && (
+                    <optgroup label="My Subjects">
+                      {assignments
+                        .filter(a => !a.isModeratorAssignment && a.class?.academic_years?.is_current)
+                        .map((asgn) => (
+                        <option key={asgn.id} value={asgn.id}>
+                          Grade {asgn.class?.grade || '?'}-{asgn.class?.section || '?'} • {asgn.subject?.name || 'Unknown Subject'}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+
+                  {assignments
+                    .filter(a => a.isModeratorAssignment && a.class?.academic_years?.is_current)
+                    .length > 0 && (
+                    <optgroup label="---------- Moderated Sections ----------">
+                      {assignments
+                        .filter(a => a.isModeratorAssignment && a.class?.academic_years?.is_current)
+                        .map((asgn) => (
+                        <option key={asgn.id} value={asgn.id}>
+                          Grade {asgn.class?.grade}{asgn.class?.section} • Section Moderator
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
                 </select>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Diary Content</label>
-                <textarea
-                  required
-                  value={diaryContent}
-                  onChange={(e) => setDiaryContent(e.target.value)}
-                  placeholder="What happened in class today?"
-                  className="w-full h-32 p-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-600 outline-none resize-none transition-all text-sm"
-                ></textarea>
-              </div>
+              {selectedAssignment && assignments.find(a => a.id === selectedAssignment)?.class?.academic_years?.is_current === false ? (
+                <div className="bg-amber-50 rounded-2xl p-6 border border-amber-100 flex flex-col gap-2">
+                   <div className="flex items-center gap-2 text-amber-700 font-black text-[10px] uppercase tracking-widest">
+                      <History className="h-3 w-3" /> Historical Record Locked
+                   </div>
+                   <p className="text-xs text-amber-600 leading-relaxed font-medium">
+                      This session has been archived. Diary entries for previous academic cycles are read-only and cannot be modified.
+                   </p>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Diary Content</label>
+                    <textarea
+                      required
+                      value={diaryContent}
+                      onChange={(e) => setDiaryContent(e.target.value)}
+                      placeholder="What happened in class today?"
+                      className="w-full h-32 p-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-600 outline-none resize-none transition-all text-sm"
+                    ></textarea>
+                  </div>
 
-              <button
-                type="submit"
-                className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 text-sm"
-              >
-                <BookOpen className="h-4 w-4" />
-                Publish
-              </button>
+                  <button
+                    type="submit"
+                    className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 text-sm"
+                  >
+                    <BookOpen className="h-4 w-4" />
+                    Publish
+                  </button>
+                </>
+              )}
             </form>
 
             <div className="mt-8 pt-8 border-t border-slate-100">
@@ -205,7 +295,7 @@ export const TeacherOverview: React.FC<TeacherOverviewProps> = ({
                  className="p-5 bg-slate-900 rounded-2xl text-white relative overflow-hidden cursor-pointer group"
                >
                   <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest leading-none mb-2">My Earnings</p>
-                  <p className="text-xl font-black group-hover:text-indigo-300 transition-colors">Rs. {teacherStats?.revenue?.toLocaleString() || 0}</p>
+                  <p className="text-xl font-black group-hover:text-indigo-300 transition-colors">Rs. {(teacherStats?.revenue || 0).toLocaleString()}</p>
                   <div className="flex items-center gap-2 mt-4 text-[9px] font-black text-indigo-400 uppercase">
                      <TrendingUp className="h-3 w-3" />
                      View Details

@@ -12,16 +12,22 @@ export const AttendanceConsoleFeature: React.FC = () => {
     loading,
     searchTerm,
     setSearchTerm,
-    stats
+    stats,
+    fetchData
   } = useGlobalAttendance(new Date().toISOString().split('T')[0]);
+
+  React.useEffect(() => {
+    (window as any).refreshGlobalAttendance = fetchData;
+    return () => { delete (window as any).refreshGlobalAttendance; };
+  }, [fetchData]);
 
   return (
     <div className="space-y-6 md:space-y-8 animate-in fade-in duration-500 pb-10">
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 px-1">
         <div>
-          <h1 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight leading-none">Attendance Log</h1>
+          <h1 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight leading-none">Faculty Attendance</h1>
           <p className="text-slate-500 font-medium mt-2 md:text-lg">
-            Monitor daily attendance entries mapped across all academic courses.
+            Monitor daily attendance logs for all registered teaching staff.
           </p>
         </div>
         <div className="flex items-center gap-4 w-full lg:w-auto">
@@ -45,7 +51,7 @@ export const AttendanceConsoleFeature: React.FC = () => {
               <input 
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
-                placeholder="Search by student name, roll number, or subject..."
+                placeholder="Search by teacher name..."
                 className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none text-sm font-medium focus:ring-4 focus:ring-indigo-500/5 transition-all"
               />
            </div>

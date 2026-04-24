@@ -4,10 +4,10 @@ import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { SchoolService } from '../../../../../../services/schoolService';
 import type { Class, Student, FeeFormState } from '../../../types/student.types';
+import { PromoteStudentModal } from '../PromoteStudentModal';
 
 interface ProfileTabProps {
   selectedStudent: Student;
-  classes: Class[];
   studentFees: any[];
   loadingFees: boolean;
   setFeeForm: React.Dispatch<React.SetStateAction<FeeFormState>>;
@@ -19,7 +19,6 @@ interface ProfileTabProps {
 
 export const ProfileTab: React.FC<ProfileTabProps> = ({
   selectedStudent,
-  classes,
   studentFees,
   loadingFees,
   setFeeForm,
@@ -28,6 +27,8 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
   closeDetail,
   fetchAll,
 }) => {
+  const [isPromoteModalOpen, setIsPromoteModalOpen] = React.useState(false);
+
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
       <div className="flex flex-col sm:flex-row gap-4">
@@ -57,27 +58,24 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
             <TrendingUp className="h-3 w-3" /> Grade Sync
           </p>
           <button
-            onClick={async () => {
-              try {
-                const result = await SchoolService.upgradeStudentGrade(selectedStudent.id, selectedStudent.classes?.grade, classes);
-                if (result === 'graduated') {
-                  toast.success('Congratulations!', { description: `${selectedStudent.name} has graduated.` });
-                  closeDetail();
-                } else {
-                  toast.success('Promotion Successful');
-                  fetchAll();
-                  closeDetail();
-                }
-              } catch (err: any) {
-                toast.error(err.message);
-              }
-            }}
-            className="w-full py-2 bg-emerald-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-700 transition-all"
+            onClick={() => setIsPromoteModalOpen(true)}
+            className="w-full py-4 bg-emerald-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-700 transition-all flex items-center justify-center gap-2"
           >
-            Promote to Grade {selectedStudent.classes?.grade ? parseInt(selectedStudent.classes.grade) + 1 : 'N/A'}
+            <TrendingUp className="h-4 w-4" /> Promote / Transfer Batch
           </button>
         </div>
       </div>
+
+      {isPromoteModalOpen && (
+        <PromoteStudentModal
+          student={selectedStudent}
+          onClose={() => setIsPromoteModalOpen(false)}
+          onSuccess={() => {
+            fetchAll();
+            closeDetail();
+          }}
+        />
+      )}
 
       <div className="bg-slate-50 p-8 rounded-[2.5rem] border border-slate-100">
         <h3 className="text-sm font-black text-slate-900 mb-6 flex items-center gap-2">
@@ -97,17 +95,17 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
 
           <div className={`p-6 rounded-2xl border ${selectedStudent.parents?.profile_id ? 'bg-emerald-50/30 border-emerald-100' : 'bg-amber-50/30 border-amber-100'}`}>
             <div className="flex items-center justify-between mb-4">
-              <p className="text-xs font-black text-slate-900">Portal Security Authentication</p>
+              <p className="text-xs font-black text-slate-900 uppercase tracking-widest">Parent Portal Access</p>
               <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${selectedStudent.parents?.profile_id ? 'bg-emerald-600 text-white' : 'bg-amber-600 text-white'}`}>
-                {selectedStudent.parents?.profile_id ? 'ACTIVE SESSIONS' : 'ACCESS PENDING'}
+                {selectedStudent.parents?.profile_id ? 'ACCESS ENABLED' : 'PENDING ACTIVATION'}
               </span>
             </div>
             {!selectedStudent.parents?.profile_id ? (
               <button
                 onClick={async () => {
                   toast.promise(SchoolService.createStudentAccess(selectedStudent.id, selectedStudent.roll_no, 'Password123!'), {
-                    loading: 'Generating Identity...',
-                    success: 'Portal initialized successfully!',
+                    loading: 'Preparing Portal...',
+                    success: 'Portal Access Ready!',
                     error: 'Failed to create access'
                   });
                   fetchAll();
@@ -115,12 +113,15 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
                 }}
                 className="w-full py-4 bg-amber-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-amber-700 transition-all shadow-lg shadow-amber-500/20"
               >
-                Initialize Student Portal
+                Activate Portal Access
               </button>
             ) : (
               <div className="flex items-center justify-between bg-white/60 p-4 rounded-xl border border-white">
-                <p className="text-[10px] font-bold text-slate-400">USERNAME: <span className="text-slate-900">{selectedStudent.roll_no}</span></p>
-                <button onClick={() => toast.info('Request Admin for local password reset')} className="text-[10px] font-black text-indigo-600 uppercase hover:underline">Security Key Settings</button>
+                <div className="flex flex-col gap-1">
+                   <p className="text-[8px] font-bold text-slate-400 uppercase leading-none">Login Identity</p>
+                   <p className="text-xs font-black text-slate-900 uppercase">{selectedStudent.parents?.profiles?.username || selectedStudent.roll_no}</p>
+                </div>
+                <button onClick={() => toast.info('Contact system admin for manual reset')} className="text-[10px] font-black text-indigo-600 uppercase hover:underline">Reset Passkey</button>
               </div>
             )}
           </div>
@@ -163,7 +164,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
                     month: fee.month,
                     amount_paid: fee.amount_paid.toString(),
                     status: fee.status || 'Unpaid',
-                    items: fee.breakdown && fee.breakdown.length > 0 ? fee.breakdown : [{ category: 'Monthly Fee', amount: Number(fee.amount_due) }]
+                    items: (fee.breakdown && fee.breakdown.length > 0) ? fee.breakdown : (fee.items && fee.items.length > 0) ? fee.items : [{ category: 'Monthly Fee', amount: Number(fee.amount_due) }]
                   });
                   setIsFeeModalOpen(true);
                 }}

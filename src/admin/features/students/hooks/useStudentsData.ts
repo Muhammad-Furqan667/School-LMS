@@ -7,6 +7,7 @@ import type { Class } from '../../classes/types/class.types';
 export const useStudentsData = () => {
   const [students, setStudents] = useState<Student[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
+  const [sessions, setSessions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchAll = async () => {
@@ -18,8 +19,11 @@ export const useStudentsData = () => {
       ]);
       setStudents(studentData || []);
       setClasses(classData || []);
+      
+      const years = await SchoolService.getAcademicYears();
+      setSessions(years || []);
     } catch (error) {
-      toast.error('Failed to load data');
+      console.error('Failed to load students data:', error);
     } finally {
       setLoading(false);
     }
@@ -44,6 +48,7 @@ export const useStudentsData = () => {
   return {
     students,
     classes,
+    sessions,
     loading,
     fetchAll,
     handleDeleteStudent,

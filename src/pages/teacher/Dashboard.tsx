@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { SchoolService } from '../../services/schoolService';
 // Supabase import removed
 import { useSchoolEvents } from '../../hooks/useSchoolEvents';
@@ -10,10 +10,14 @@ import { AttendanceBox } from '../../components/teacher/AttendanceBox';
 import { SalaryRecord } from '../../components/teacher/SalaryRecord';
 import { TeacherProfile } from '../../components/teacher/TeacherProfile';
 import { TeacherOverview } from '../../components/teacher/TeacherOverview';
+import { MyClasses } from '../../components/teacher/MyClasses';
+import { MyStudents } from '../../components/teacher/MyStudents';
 
 const TeacherDashboard: React.FC = () => {
+  const location = useLocation();
   const [assignments, setAssignments] = useState<any[]>([]);
   const [selectedAssignment, setSelectedAssignment] = useState('');
+  const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
   const [diaryContent, setDiaryContent] = useState('');
   const [history, setHistory] = useState<any[]>([]);
   const [timetable, setTimetable] = useState<any[]>([]);
@@ -27,6 +31,8 @@ const TeacherDashboard: React.FC = () => {
   const [profileData, setProfileData] = useState<any>(null);
   const [teacherTimetable, setTeacherTimetable] = useState<any[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
+  const [todaysAttendance, setTodaysAttendance] = useState<any[]>([]);
+  const [moderatedClasses, setModeratedClasses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Subscribe to real-time events (Admin OTAs)
@@ -54,20 +60,31 @@ const TeacherDashboard: React.FC = () => {
       setTeacherData(teacher);
       setProfileData(profile);
 
-      const [assignData, statsData, tTimetable, taskData] = await Promise.all([
-        SchoolService.getTeacherAssignments(teacher.id),
+      const [assignData, statsData, tTimetable, taskData, moderatedData] = await Promise.all([
+        teacher ? SchoolService.getTeacherAssignments(teacher.id) : Promise.resolve([]),
         SchoolService.getTeacherStats(customUserId),
-        SchoolService.getTeacherTimetable(teacher.id),
-        SchoolService.getTeacherTasks(undefined, teacher.id)
+        teacher ? SchoolService.getTeacherTimetable(teacher.id) : Promise.resolve([]),
+        teacher ? SchoolService.getTeacherTasks(undefined, teacher.id) : Promise.resolve([]),
+        teacher ? SchoolService.getModeratedClasses(teacher.id) : Promise.resolve([])
       ]);
-      setAssignments(assignData);
-      setTeacherStats(statsData);
-      setTeacherTimetable(tTimetable);
-      setTasks(taskData);
 
-      if (assignData.length > 0) {
-        setSelectedAssignment(assignData[0].id);
-        fetchAssignmentDetails(assignData[0]);
+      // Merge assignments and moderated classes with a separator flag
+      const mergedAssignments = [
+        ...(assignData || []),
+        ...(moderatedData || [])
+      ];
+
+      setAssignments(mergedAssignments);
+      setTeacherStats(statsData);
+      setTeacherTimetable(tTimetable || []);
+      setTasks(taskData || []);
+      setModeratedClasses(moderatedData || []);
+
+      if (mergedAssignments.length > 0) {
+        const modAsgn = mergedAssignments.find(a => a.isModeratorAssignment);
+        const initialAsgn = (location.pathname.includes('/attendance') && modAsgn) ? modAsgn : mergedAssignments[0];
+        setSelectedAssignment(initialAsgn.id);
+        fetchAssignmentDetails(initialAsgn);
       }
     } catch (error) {
       toast.error('Failed to load workplace data');
@@ -76,33 +93,76 @@ const TeacherDashboard: React.FC = () => {
     }
   };
 
-  const fetchAssignmentDetails = async (assignment: any) => {
+  const fetchAssignmentDetails = async (assignment: any, date: string = attendanceDate) => {
     try {
-      const [diaryData, timetableData, studentData, resultsData, classData] = await Promise.all([
-        SchoolService.getDiaryEntries(assignment.id),
-        SchoolService.getTimetable(assignment.class_id),
-        SchoolService.getStudents(assignment.class_id),
-        SchoolService.getResults(undefined, assignment.subject_id),
-        SchoolService.getClassById(assignment.class_id)
+      const isMod = assignment.isModeratorAssignment;
+      
+      const [studentData, classData, diaryData, attendanceData] = await Promise.all([
+        isMod ? SchoolService.getStudents(assignment.class_id) : SchoolService.getStudentsByClass(assignment.class_id),
+        SchoolService.getClassById(assignment.class_id),
+        isMod ? Promise.resolve([]) : SchoolService.getDiaryEntries(assignment.id),
+        SchoolService.getAttendanceByAssignment(assignment.id, date),
       ]);
-      setHistory(diaryData);
-      setTimetable(timetableData);
-      setStudents(studentData);
-      setResults(resultsData);
+      
+      setStudents(studentData || []);
       setSelectedClassData(classData);
+      setHistory(diaryData || []);
+      setTodaysAttendance(attendanceData || []);
     } catch (error) {
       toast.error('Error fetching class details');
     }
   };
 
   useEffect(() => {
-    const asgn = assignments.find(a => a.id === selectedAssignment);
-    if (asgn) fetchAssignmentDetails(asgn);
-  }, [selectedAssignment]);
+    if (!selectedAssignment) return;
+    
+    if (selectedAssignment.startsWith('MOD-')) {
+      const classId = selectedAssignment.replace('MOD-', '');
+      const cls = moderatedClasses.find(c => c.class_id === classId);
+      if (cls) {
+        fetchAssignmentDetails(cls);
+      }
+    } else {
+      const asgn = assignments.find(a => a.id === selectedAssignment);
+      if (asgn) fetchAssignmentDetails(asgn);
+    }
+  }, [selectedAssignment, assignments, moderatedClasses]);
+
+  useEffect(() => {
+    if (location.pathname.includes('/attendance') && assignments.length > 0) {
+      const modAsgn = assignments.find(a => a.isModeratorAssignment);
+      if (modAsgn && selectedAssignment !== modAsgn.id) {
+        setSelectedAssignment(modAsgn.id);
+      }
+    }
+  }, [location.pathname, assignments]);
+
+  useEffect(() => {
+    if (!selectedAssignment || !attendanceDate) return;
+    
+    let asgn = assignments.find(a => a.id === selectedAssignment);
+    if (!asgn) {
+      const classId = selectedAssignment.replace('MOD-', '');
+      asgn = assignments.find(a => a.class_id === classId);
+    }
+    
+    if (asgn) {
+      fetchAssignmentDetails(asgn, attendanceDate);
+    }
+  }, [attendanceDate]);
 
   const handleCreateDiary = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedAssignment || !diaryContent.trim()) return;
+    const asgn = assignments.find(a => a.id === selectedAssignment);
+    if (asgn && !asgn.class?.academic_years?.is_current) {
+      toast.error('Diary posting is officially locked for archived academic sessions.');
+      return;
+    }
+
+    if (selectedAssignment.startsWith('MOD-')) {
+      toast.error('Diary entries must be posted to a specific subject, not class attendance.');
+      return;
+    }
 
     try {
       await SchoolService.createDiaryEntry({
@@ -116,8 +176,9 @@ const TeacherDashboard: React.FC = () => {
       
       const diaryData = await SchoolService.getDiaryEntries(selectedAssignment);
       setHistory(diaryData);
-    } catch (error) {
-      toast.error('Failed to post diary');
+    } catch (error: any) {
+      console.error('Diary post error:', error);
+      toast.error(`Failed to post diary: ${error.message || 'Unknown error'}`);
     }
   };
 
@@ -160,20 +221,31 @@ const TeacherDashboard: React.FC = () => {
           <AttendanceBox 
             students={students} 
             isClassTeacher={selectedClassData?.class_teacher_id === teacherData?.id}
-            onSave={async (attendanceData) => {
+            existingAttendance={todaysAttendance}
+            selectedDate={attendanceDate}
+            onDateChange={setAttendanceDate}
+            onSave={async (attendanceData, markingTime) => {
                if(!selectedAssignment) {
                  toast.error('Select an assignment first to mark attendance');
                  return;
                }
+               
+               const asgn = assignments.find(a => a.id === selectedAssignment);
+               if (!asgn) return;
+
+               const records = Object.entries(attendanceData).map(([studentId, status]) => ({
+                 student_id: studentId,
+                 assignment_id: asgn.isModeratorAssignment ? null : asgn.id,
+                 date: attendanceDate,
+                 marking_time: markingTime,
+                 status
+               }));
                try {
-                 const records = students.map(s => ({
-                   student_id: s.id,
-                   date: new Date().toISOString().split('T')[0],
-                   status: attendanceData[s.id] || 'present',
-                   assignment_id: selectedAssignment
-                 }));
                  await SchoolService.bulkUpsertAttendance(records);
                  toast.success('Attendance synced successfully');
+                 
+                 // Refresh details to lock the UI
+                 fetchAssignmentDetails(asgn);
                } catch (e) {
                  toast.error('Failed to sync attendance');
                }
@@ -181,6 +253,8 @@ const TeacherDashboard: React.FC = () => {
           />
         } />
         <Route path="salary" element={<SalaryRecord teacher={teacherData} />} />
+        <Route path="classes" element={<MyClasses teacher={teacherData} assignments={assignments} />} />
+        <Route path="students" element={<MyStudents teacher={teacherData} assignments={assignments} />} />
         <Route path="profile" element={<TeacherProfile teacher={teacherData} profile={profileData} />} />
         {/* Fallback to Overview for unknown sub-routes */}
         <Route path="*" element={

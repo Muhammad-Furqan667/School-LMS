@@ -124,46 +124,65 @@ export const PromotionConsoleFeature: React.FC = () => {
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
         {/* Controls */}
         <div className="xl:col-span-1 space-y-6">
+          {/* Session Transition Hub */}
+          <div className="bg-slate-900 p-8 rounded-[3rem] border border-slate-800 shadow-2xl relative overflow-hidden group">
+            <div className="relative z-10 space-y-6">
+              <div className="flex items-center gap-3">
+                 <div className="h-10 w-10 bg-emerald-500/20 rounded-xl flex items-center justify-center text-emerald-400">
+                    <RefreshCw className="h-5 w-5" />
+                 </div>
+                 <h3 className="text-lg font-black text-white">Session Transition</h3>
+              </div>
+              
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-relaxed">
+                Retire the current active session and initialize the next academic cycle. 
+                <span className="text-emerald-400 block mt-1">This will automatically archive the current session.</span>
+              </p>
+
+              <button 
+                onClick={async () => {
+                  const label = prompt('Enter next session label (e.g. 2025-26):');
+                  if (!label) return;
+                  
+                  if (!confirm(`Are you sure you want to promote the school to ${label}? The current session will be archived.`)) return;
+
+                  try {
+                    setProcessing(true);
+                    await SchoolService.upsertAcademicYear({ year_label: label, is_current: true });
+                    toast.success(`Academic Cycle ${label} is now ACTIVE.`);
+                    fetchMetadata();
+                  } catch (e) {
+                    toast.error('Failed to transition session');
+                  } finally {
+                    setProcessing(false);
+                  }
+                }}
+                disabled={processing}
+                className="w-full py-4 bg-emerald-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-500/20 active:scale-95 disabled:opacity-50"
+              >
+                {processing ? 'Processing Transition...' : 'Initialize Next Session'}
+              </button>
+            </div>
+            <div className="absolute -right-10 -bottom-10 h-40 w-40 bg-emerald-500/10 blur-3xl rounded-full group-hover:bg-emerald-500/20 transition-all" />
+          </div>
+
           <div className="bg-white p-8 rounded-[3rem] border border-slate-200 shadow-sm space-y-8">
             <div>
-              <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-4">Academic Session</label>
+              <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-4">View Specific Session Records</label>
               <div className="flex gap-2">
                 <select
                   value={selectedYearId}
                   onChange={(e) => setSelectedYearId(e.target.value)}
-                  className="flex-1 p-5 bg-slate-900 text-white border-none rounded-2xl outline-none font-bold appearance-none cursor-pointer"
+                  className="flex-1 p-5 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-bold appearance-none cursor-pointer text-slate-900"
                 >
                   <option value="">Select Session</option>
                   {academicYears.length > 0 ? academicYears.map(y => (
-                    <option key={y.id} value={y.id}>{y.year_label} {y.is_current ? '(Current)' : ''}</option>
+                    <option key={y.id} value={y.id}>{y.year_label} {y.is_current ? '(Current Active)' : '(Archived)'}</option>
                   )) : (
                     <option disabled>No Sessions Found</option>
                   )}
                 </select>
-                <button 
-                  onClick={async () => {
-                    const label = prompt('Enter session label (e.g. 2024-25):', '2024-25');
-                    if (label) {
-                      try {
-                        await SchoolService.upsertAcademicYear({ year_label: label, is_current: true });
-                        toast.success('Session created and activated');
-                        fetchMetadata();
-                      } catch (e) {
-                        toast.error('Failed to create session');
-                      }
-                    }
-                  }}
-                  className="p-5 bg-emerald-600 text-white rounded-2xl hover:bg-emerald-700 transition-all"
-                  title="Initialize Session"
-                >
-                  <Plus className="h-5 w-5" />
-                </button>
               </div>
-              {academicYears.length === 0 && (
-                <p className="text-[9px] text-rose-500 font-bold mt-2 uppercase tracking-tight">
-                  System session not initialized. Please click the + button to create a session.
-                </p>
-              )}
             </div>
 
             <div>

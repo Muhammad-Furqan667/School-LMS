@@ -9,6 +9,7 @@ import type { TablesInsert } from '../types/database';
  */
 
 export class SchoolService {
+  static supabase = supabase;
   /**
    * ACADEMIC YEARS & CLASSES
    */
@@ -92,25 +93,48 @@ export class SchoolService {
    * @returns {Promise<Tables<'students'>[]>} Array of students.
    */
   static async getStudents(classId?: string, parentId?: string) {
-    let query = supabase.from('students').select('*, parents(*), classes(*, academic_years(*)), fees(status)');
+    let query = supabase.from('students').select('*, parents(*, profiles(username)), classes(*, academic_years(*)), fees(status)');
     if (classId) query = query.eq('class_id', classId);
     if (parentId) query = query.eq('parent_id', parentId);
     
     const { data, error } = await query.order('created_at', { ascending: false });
-    if (error) throw error;
+    if (error) {
+      console.warn('Student list fetch failed, falling back to basic data:', error.message);
+      let fallbackQuery = supabase.from('students').select('*, classes(*)');
+      if (classId) fallbackQuery = fallbackQuery.eq('class_id', classId);
+      if (parentId) fallbackQuery = fallbackQuery.eq('parent_id', parentId);
+      
+      const { data: fallback, error: fbError } = await fallbackQuery;
+      if (fbError) throw fbError;
+      return fallback;
+    }
     return data;
   }
 
   /**
-   * Fetches a single student by ID.
+   * Fetches a single student by ID with their class and parent info.
    */
   static async getStudentById(studentId: string) {
     const { data, error } = await supabase
       .from('students')
-      .select('*, classes(*), parents(*)')
+      .select(`
+        *,
+        classes(*, academic_years(*)),
+        parents(*)
+      `)
       .eq('id', studentId)
-      .single();
-    if (error) throw error;
+      .maybeSingle();
+    
+    if (error) {
+      console.warn('Student detail fetch error, falling back:', error.message);
+      const { data: fallback, error: fallbackError } = await supabase
+        .from('students')
+        .select('*, classes(*)')
+        .eq('id', studentId)
+        .maybeSingle();
+      if (fallbackError) throw fallbackError;
+      return fallback;
+    }
     return data;
   }
 
@@ -142,14 +166,22 @@ export class SchoolService {
    * @returns {Promise<Tables<'diary'>[]>} Array of diary entries.
    */
   static async getDiaryEntries(assignmentId: string) {
-    const { data, error } = await supabase
-      .from('diary')
-      .select('*')
-      .eq('assignment_id', assignmentId)
-      .order('date', { ascending: false });
-    
-    if (error) throw error;
-    return data;
+    try {
+      const { data, error } = await supabase
+        .from('diary')
+        .select('*')
+        .eq('assignment_id', assignmentId)
+        .order('date', { ascending: false });
+      
+      if (error) {
+        console.warn('Diary fetch failed, returning empty:', error.message);
+        return [];
+      }
+      return data;
+    } catch (e) {
+      console.warn('Diary fetch exception:', e);
+      return [];
+    }
   }
 
   /**
@@ -179,20 +211,6 @@ export class SchoolService {
   }
 
   /**
-   * Fetches attendance records for a student.
-   */
-  static async getAttendance(studentId: string) {
-    const { data, error } = await supabase
-      .from('attendance')
-      .select('*')
-      .eq('student_id', studentId)
-      .order('date', { ascending: false });
-    
-    if (error) throw error;
-    return data;
-  }
-
-  /**
    * Fetches all attendance records for a specific date across all classes.
    */
   static async getAllAttendance(date: string) {
@@ -209,6 +227,31 @@ export class SchoolService {
         )
       `)
       .eq('date', date);
+    
+    if (error) throw error;
+    return data;
+  }
+
+  static async getAllTeacherAttendance(date: string) {
+    const { data: teachers } = await supabase.from('teachers').select('*');
+    const { data: attendance } = await supabase.from('teacher_attendance').select('*').eq('date', date);
+    
+    return (teachers || []).map(t => {
+      const record = (attendance || []).find(a => a.teacher_id === t.id);
+      return {
+        ...record,
+        teacher_id: t.id,
+        teacher: t,
+        status: record?.status || 'not-marked',
+        date
+      };
+    });
+  }
+
+  static async upsertTeacherAttendance(record: { teacher_id: string, date: string, status: string }) {
+    const { data, error } = await supabase
+      .from('teacher_attendance')
+      .upsert(record, { onConflict: 'teacher_id,date' });
     
     if (error) throw error;
     return data;
@@ -241,14 +284,72 @@ export class SchoolService {
       absent: (attendanceData || []).filter((a: any) => a.status === 'absent').length,
       late: (attendanceData || []).filter((a: any) => a.status === 'late').length,
       total: attendanceData.length,
-      percentage: 0
+      percentage: '0.00'
     };
 
     if (stats.total > 0) {
-      stats.percentage = Math.round(((stats.present + (stats.late * 0.5)) / stats.total) * 100);
+      stats.percentage = (stats.present / stats.total * 100).toFixed(2);
     }
 
     return stats;
+  }
+
+  static async getAttendanceHistory(studentId: string) {
+    const { data, error } = await supabase
+      .from('attendance')
+      .select('*, assignment:teacher_assignments(*, subject:subjects(*), teacher:teachers(*))')
+      .eq('student_id', studentId)
+      .order('date', { ascending: false });
+    if (error) throw error;
+    return data;
+  }
+
+  static async getAttendanceByAssignment(assignmentId: string, date: string) {
+    let query = supabase
+      .from('attendance')
+      .select('*, student:students!inner(class_id)')
+      .eq('date', date);
+
+    if (assignmentId.startsWith('MOD-')) {
+      const classId = assignmentId.replace('MOD-', '');
+      query = query.is('assignment_id', null).eq('student.class_id', classId);
+    } else {
+      query = query.eq('assignment_id', assignmentId);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+    return data;
+  }
+
+  static async getModeratedClasses(teacherId: string) {
+    const { data: assignments } = await supabase
+      .from('teacher_assignments')
+      .select('*, subject:subjects(name)')
+      .eq('teacher_id', teacherId);
+
+    const { data, error } = await supabase
+      .from('classes')
+      .select('*, academic_years!inner(*)')
+      .eq('class_teacher_id', teacherId)
+      .eq('academic_years.is_current', true);
+    
+    if (error) throw error;
+    
+    // Return all moderated classes, linking subject context where available
+    return (data || []).map(cls => {
+      const relatedAssignment = (assignments || []).find(a => a.class_id === cls.id);
+      return {
+        id: `MOD-${cls.id}`,
+        class_id: cls.id,
+        isModeratorAssignment: true,
+        class: cls,
+        subject: { 
+          name: relatedAssignment ? `Attendance (${relatedAssignment.subject?.name})` : 'General Attendance' 
+        },
+        assignment_id: relatedAssignment?.id
+      };
+    });
   }
 
   static async bulkUpsertAttendance(records: any[]) {
@@ -260,13 +361,22 @@ export class SchoolService {
     return data;
   }
 
+  static async bulkUpsertTeacherAttendance(records: any[]) {
+    if (!records || records.length === 0) return;
+    const { data, error } = await supabase
+      .from('teacher_attendance')
+      .upsert(records, { onConflict: 'teacher_id,date' });
+    if (error) throw error;
+    return data;
+  }
+
   /**
    * Fetches all students enrolled in a specific class.
    */
   static async getStudentsByClass(classId: string) {
     const { data, error } = await supabase
       .from('students')
-      .select('*')
+      .select('*, parents(*, profiles(username))')
       .eq('class_id', classId)
       .order('name');
     
@@ -282,11 +392,20 @@ export class SchoolService {
       .from('teacher_assignments')
       .select(`
         *,
-        class:classes(*),
+        class:classes(*, academic_years(*)),
         subject:subjects(*)
       `)
       .eq('teacher_id', teacherId);
-    if (error) throw error;
+    
+    if (error) {
+      console.warn('Teacher assignments fetch failed, falling back:', error.message);
+      const { data: fallback, error: fbError } = await supabase
+        .from('teacher_assignments')
+        .select('*, class:classes(*), subject:subjects(*)')
+        .eq('teacher_id', teacherId);
+      if (fbError) throw fbError;
+      return fallback;
+    }
     return data;
   }
 
@@ -616,6 +735,54 @@ export class SchoolService {
   }
 
   static async upsertTimetable(timetableRecord: any) {
+    // 0. Basic duration validation
+    if (timetableRecord.end_time <= timetableRecord.start_time) {
+      throw new Error('Invalid Time: End time must be later than start time.');
+    }
+
+    // 1. Get the teacher_id for the assignment being scheduled
+    const { data: currentAssignment } = await supabase
+      .from('teacher_assignments')
+      .select('teacher_id')
+      .eq('id', timetableRecord.assignment_id)
+      .single();
+
+    if (currentAssignment) {
+      // 2. Fetch all scheduled slots for the SAME teacher on the SAME day across ALL classes
+      const { data: existingSlots } = await supabase
+        .from('timetable')
+        .select(`
+          id,
+          start_time,
+          end_time,
+          assignment:teacher_assignments!inner (
+            teacher_id,
+            class:classes(grade, section),
+            subject:subjects(name)
+          )
+        `)
+        .eq('day_of_week', timetableRecord.day_of_week)
+        .eq('assignment.teacher_id', currentAssignment.teacher_id);
+
+      // 3. Check for time overlap
+      const hasOverlap = existingSlots?.some(slot => {
+        // Skip if we're updating the same slot
+        if (timetableRecord.id && slot.id === timetableRecord.id) return false;
+
+        const newStart = timetableRecord.start_time;
+        const newEnd = timetableRecord.end_time;
+        const oldStart = slot.start_time;
+        const oldEnd = slot.end_time;
+
+        // Overlap logic: (StartA < EndB) AND (EndA > StartB)
+        return (newStart < oldEnd && newEnd > oldStart);
+      });
+
+      if (hasOverlap) {
+        throw new Error('Teacher Conflict: This teacher is already scheduled for another class at this time.');
+      }
+    }
+
     const { data, error } = await supabase
       .from('timetable')
       .upsert(timetableRecord)
@@ -639,9 +806,36 @@ export class SchoolService {
   static async getStudentFees(studentId: string) {
     const { data, error } = await supabase
       .from('fees')
-      .select('*, academic_years(*)')
+      .select('*, academic_years!academic_year_id(*)')
       .eq('student_id', studentId)
-      .order('month', { ascending: false });
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+        console.warn('Fee history fetch failed, trying without join:', error.message);
+        const { data: fallback, error: fallbackError } = await supabase
+            .from('fees')
+            .select('*')
+            .eq('student_id', studentId)
+            .order('created_at', { ascending: false });
+        if (fallbackError) throw fallbackError;
+        return fallback;
+    }
+    return data;
+  }
+
+  /**
+   * Updates the status and paid amount of a specific fee record.
+   */
+  static async updateFeeStatus(feeId: string, status: string, amountPaid: number) {
+    const { data, error } = await supabase
+      .from('fees')
+      .update({
+        status,
+        amount_paid: amountPaid
+      })
+      .eq('id', feeId)
+      .select()
+      .single();
     
     if (error) throw error;
     return data;
@@ -690,6 +884,17 @@ export class SchoolService {
     if (error) throw error;
   }
 
+  static async updateStudentStatus(studentId: string, status: string) {
+    const { data, error } = await supabase
+      .from('students')
+      .update({ status })
+      .eq('id', studentId)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
   static async getSubjects() {
     const { data, error } = await supabase
       .from('subjects')
@@ -705,7 +910,7 @@ export class SchoolService {
   static async getResults(studentId?: string, subjectId?: string) {
     let query = supabase
       .from('results')
-      .select('*, subjects(*), students(*)');
+      .select('*, subjects(*), students(*), assessment:assessments(*)');
     
     if (studentId) query = query.eq('student_id', studentId);
     if (subjectId) query = query.eq('subject_id', subjectId);
@@ -721,6 +926,51 @@ export class SchoolService {
       .upsert(result)
       .select()
       .single();
+    if (error) throw error;
+    return data;
+  }
+
+  /**
+   * ASSESSMENT & MARKS CATEGORIES (PHASE 6)
+   */
+  static async getAssessments(teacherId?: string, classId?: string, subjectId?: string) {
+    let query = supabase.from('assessments').select('*, teacher:teachers(full_name), class:classes(grade, section), subject:subjects(name)');
+    if (teacherId) query = query.eq('teacher_id', teacherId);
+    if (classId) query = query.eq('class_id', classId);
+    if (subjectId) query = query.eq('subject_id', subjectId);
+    
+    const { data, error } = await query.order('date', { ascending: false });
+    if (error) {
+      console.warn('Assessments fetch failed, falling back to basic data:', error.message);
+      let fallbackQuery = supabase.from('assessments').select('*');
+      if (teacherId) fallbackQuery = fallbackQuery.eq('teacher_id', teacherId);
+      if (classId) fallbackQuery = fallbackQuery.eq('class_id', classId);
+      if (subjectId) fallbackQuery = fallbackQuery.eq('subject_id', subjectId);
+      
+      const { data: fallback, error: fbError } = await fallbackQuery.order('date', { ascending: false });
+      if (fbError) throw fbError;
+      return fallback;
+    }
+    return data;
+  }
+
+  static async createAssessment(assessment: any) {
+    const { data, error } = await supabase.from('assessments').insert(assessment).select().single();
+    if (error) throw error;
+    return data;
+  }
+
+  static async getAssessmentResults(assessmentId: string) {
+    const { data, error } = await supabase.from('results').select('*, student:students(id, name, roll_no)').eq('assessment_id', assessmentId);
+    if (error) throw error;
+    return data;
+  }
+
+  static async bulkUpsertResults(results: any[]) {
+    console.log('Publishing results payload:', results);
+    const { data, error } = await supabase.rpc('upsert_assessment_results', {
+      results_json: results
+    });
     if (error) throw error;
     return data;
   }
@@ -1005,6 +1255,7 @@ export class SchoolService {
       .from('teachers')
       .select(`
         *,
+        profiles(username, role),
         teacher_assignments(
           id,
           subject_id,
@@ -1272,7 +1523,18 @@ export class SchoolService {
       .order('year_label', { ascending: false });
     
     if (error) throw error;
-    return data || [];
+    const years = data || [];
+
+    // Safety check: ensure only one is current
+    const currentSessions = years.filter(y => y.is_current);
+    if (currentSessions.length > 1) {
+       console.warn('Multiple active sessions detected. Enforcing single-active-session policy.');
+       // Keep only the first one (most recent due to order)
+       await this.setCurrentYear(currentSessions[0].id);
+       return years.map(y => y.id === currentSessions[0].id ? { ...y, is_current: true } : { ...y, is_current: false });
+    }
+
+    return years;
   }
   /**
    * Ensures at least one session is marked as current.
@@ -1308,6 +1570,11 @@ export class SchoolService {
    */
   static async upsertAcademicYear(year: any) {
     try {
+      // If setting as current, reset all others first
+      if (year.is_current) {
+        await supabase.from('academic_years').update({ is_current: false }).neq('id', '00000000-0000-0000-0000-000000000000');
+      }
+
       // Direct Insert
       const { data, error } = await supabase
         .from('academic_years')
@@ -1315,7 +1582,6 @@ export class SchoolService {
         .select();
       
       if (error) {
-        console.error('Insert Error:', error);
         // Direct Upsert Fallback
         const { data: upsertData, error: upsertError } = await supabase
           .from('academic_years')
@@ -1323,6 +1589,12 @@ export class SchoolService {
           .select();
         
         if (upsertError) throw upsertError;
+
+        // If upserted as current, double check reset
+        if (year.is_current && upsertData && upsertData[0]) {
+           await supabase.from('academic_years').update({ is_current: false }).neq('id', upsertData[0].id);
+           await supabase.from('academic_years').update({ is_current: true }).eq('id', upsertData[0].id);
+        }
         return upsertData;
       }
       return data;
@@ -1401,7 +1673,7 @@ export class SchoolService {
 
     const { data, error } = await supabase
       .from('fees')
-      .insert(feeRecords);
+      .upsert(feeRecords, { onConflict: 'student_id,month,academic_year_id' });
     
     if (error) throw error;
     return data;
@@ -1435,5 +1707,16 @@ export class SchoolService {
       .delete()
       .eq('id', taskId);
     if (error) throw error;
+  }
+
+  static async updateAttendanceRecord(recordId: string, status: string) {
+    const { data, error } = await supabase
+      .from('attendance')
+      .update({ status })
+      .eq('id', recordId)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
   }
 }

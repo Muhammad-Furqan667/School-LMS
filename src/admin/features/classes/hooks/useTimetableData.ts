@@ -40,8 +40,8 @@ export const useTimetableData = () => {
       });
       toast.success('Slot scheduled');
       fetchTimetableData(classId);
-    } catch {
-      toast.error('Failed to schedule slot');
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to schedule slot');
     }
   };
 

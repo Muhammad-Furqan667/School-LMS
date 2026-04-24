@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Edit3, Trash2, DollarSign, Calendar, ShieldCheck, CheckCircle2, BookOpen, ClipboardList } from 'lucide-react';
+import { X, Edit3, Trash2, DollarSign, Calendar, ShieldCheck, CheckCircle2, BookOpen, ClipboardList, Target } from 'lucide-react';
 import type { Teacher, EditFormState } from '../../types/teacher.types';
 
 interface TeacherDetailModalProps {
@@ -16,6 +16,7 @@ interface TeacherDetailModalProps {
   handleRemoveAssignment: (assignmentId: string) => Promise<void>;
   handleAssignModerator: (teacherId: string, classId: string) => Promise<void>;
   setIsAssignModalOpen: (val: boolean) => void;
+  handleCreateTask: (task: any, onSuccess: () => void) => Promise<void>;
   classes: any[];
 }
 
@@ -33,8 +34,16 @@ export const TeacherDetailModal: React.FC<TeacherDetailModalProps> = ({
   handleRemoveAssignment,
   handleAssignModerator,
   setIsAssignModalOpen,
+  handleCreateTask,
   classes,
 }) => {
+  const [taskForm, setTaskForm] = React.useState({
+    assignment_id: '',
+    task_description: '',
+    target_date: new Date().toISOString().split('T')[0]
+  });
+  const [isTaskFormOpen, setIsTaskFormOpen] = React.useState(false);
+
   const groupedTasks = (tasks || []).reduce((acc: any, task: any) => {
     const className = task.assignment?.class 
       ? `Grade ${task.assignment.class.grade}${task.assignment.class.section}`
@@ -43,10 +52,12 @@ export const TeacherDetailModal: React.FC<TeacherDetailModalProps> = ({
     acc[className].push(task);
     return acc;
   }, {});
+
   return (
     <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
       <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md" onClick={closeDetail} />
       <div className="relative bg-white rounded-[3rem] w-full max-w-4xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col md:flex-row h-[90vh] md:h-auto md:max-h-[85vh]">
+        
         {/* Sidebar Info Section */}
         <div className="w-full md:w-80 bg-slate-900 p-8 text-white flex flex-col relative overflow-y-auto min-h-[300px] md:min-h-0">
           <button onClick={closeDetail} className="absolute right-6 top-6 p-3 bg-white/10 rounded-2xl hover:bg-white/20 transition-colors">
@@ -55,7 +66,7 @@ export const TeacherDetailModal: React.FC<TeacherDetailModalProps> = ({
 
           <div className="flex flex-col items-center text-center mt-6">
             <div className="h-24 w-24 bg-white/10 rounded-[2.5rem] border border-white/10 flex items-center justify-center font-black text-4xl mb-6 backdrop-blur-xl shadow-2xl">
-              {selectedTeacher.full_name?.[0]}
+              {selectedTeacher.full_name?.[0] || '?'}
             </div>
 
             {isEditing ? (
@@ -71,16 +82,24 @@ export const TeacherDetailModal: React.FC<TeacherDetailModalProps> = ({
             ) : (
               <>
                 <h2 className="text-2xl font-black tracking-tight">{selectedTeacher.full_name}</h2>
-                <p className="text-emerald-400 text-[10px] font-black uppercase tracking-[0.2em] pt-1 leading-none mt-2">
-                  {selectedTeacher.profiles?.role === 'admin' ? 'Head of Faculty' : 'Faculty Member'}
-                </p>
+                <div className="flex flex-col gap-2 mt-4 w-full">
+                  <div className="px-3 py-2 bg-indigo-600 rounded-xl border border-indigo-400/30 flex flex-col items-center gap-1 shadow-lg">
+                    <p className="text-[8px] font-black text-indigo-200 uppercase tracking-[0.2em] leading-none">Institutional ID</p>
+                    <p className="text-xs font-black text-white uppercase tracking-wider">#{selectedTeacher.id.slice(0, 8).toUpperCase()}</p>
+                  </div>
+                  
+                  {selectedTeacher.profiles?.username && (
+                    <div className="px-3 py-2 bg-white/5 rounded-xl border border-white/10 flex flex-col items-center gap-1">
+                      <p className="text-[8px] font-black text-white/40 uppercase tracking-[0.2em] leading-none">Login Identity</p>
+                      <p className="text-xs font-black text-emerald-400 uppercase tracking-wider">{selectedTeacher.profiles.username}</p>
+                    </div>
+                  )}
+                </div>
               </>
             )}
           </div>
 
           <div className="flex flex-col gap-3 mt-auto pt-10">
-
-
             {isEditing ? (
               <>
                 <button
@@ -171,81 +190,70 @@ export const TeacherDetailModal: React.FC<TeacherDetailModalProps> = ({
                  className="w-full bg-white border border-slate-200 rounded-2xl p-5 outline-none focus:ring-4 focus:ring-indigo-500/5 font-black text-slate-900 appearance-none cursor-pointer"
                >
                  <option value="">No Section Assigned</option>
-                 {classes.map((c) => (
+                 {classes
+                   .filter(c => {
+                     const isCurrent = c.academic_years?.is_current;
+                     const isVacantOrSelf = !c.class_teacher_id || c.class_teacher_id === selectedTeacher.id;
+                     const hasAssignment = selectedTeacher.teacher_assignments?.some((a: any) => a.class_id === c.id);
+                     return isCurrent && isVacantOrSelf && hasAssignment;
+                   })
+                   .map((c) => (
                    <option key={c.id} value={c.id}>
-                     Grade {c.grade}{c.section} Moderator
+                     Grade {c.grade}{c.section} ({c.academic_years?.year_label})
                    </option>
                  ))}
                </select>
             </div>
           </div>
 
-          {/* Identity Hub */}
+          {/* Identity Hub - Simplified as requested */}
           <div className="bg-slate-50 rounded-[2.5rem] p-8 border border-slate-100">
             <h3 className="text-sm font-black text-slate-900 mb-6 flex items-center gap-2">
-              <ShieldCheck className="h-4 w-4" /> Academic Portal Security
+              <ShieldCheck className="h-4 w-4" /> Portal Access Management
             </h3>
             {isEditing ? (
               <div className="space-y-4">
                 {!selectedTeacher.profile_id && (
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block ml-2">Public Username</label>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block ml-2">Username</label>
                     <input
                       type="text"
                       value={editForm.username}
                       onChange={(e) => setEditForm({ ...editForm, username: e.target.value.toLowerCase().replace(/\s+/g, '') })}
-                      placeholder="e.g. professor.ali"
-                      required
+                      placeholder="e.g. prof_ali"
                       className="w-full bg-white border border-slate-200 rounded-2xl p-5 outline-none focus:ring-4 focus:ring-indigo-500/5 font-black text-slate-900"
                     />
                   </div>
                 )}
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block ml-2">Secure Passkey</label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block ml-2">Set Password</label>
                   <input
                     type="text"
                     value={editForm.password}
                     onChange={(e) => setEditForm({ ...editForm, password: e.target.value })}
-                    placeholder={selectedTeacher.profile_id ? "Leave blank to keep existing password" : "Set Initial Password"}
-                    required={!selectedTeacher.profile_id}
+                    placeholder={selectedTeacher.profile_id ? "Leave blank to keep existing" : "Set Password"}
                     className="w-full bg-white border border-slate-200 rounded-2xl p-5 outline-none focus:ring-4 focus:ring-indigo-500/5 font-black text-slate-900"
                   />
-                  <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-1 ml-2">* Passwords must be at least 8 characters with institutional symbols.</p>
                 </div>
-              </div>
-            ) : selectedTeacher.profile_id ? (
-              <div className="flex items-center justify-between bg-white/60 p-6 rounded-3xl border border-white">
-                <div className="flex items-center gap-4">
-                  <div className="h-10 w-10 bg-emerald-100 rounded-xl flex items-center justify-center text-emerald-600">
-                    <CheckCircle2 className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Faculty Identity ACTIVE</p>
-                    <p className="text-sm font-black text-slate-900">Digital Access Token Verified</p>
-                  </div>
-                </div>
-                <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
               </div>
             ) : (
-              <div className="bg-amber-50 p-6 rounded-3xl border border-amber-100 border-dashed">
-                <p className="text-[11px] text-amber-800 font-bold leading-relaxed italic text-center">
-                  "This faculty member currently lacks a digital ID. Initialize their profile to enable curriculum management and digital attendance."
-                </p>
+              <div className="bg-white/60 p-6 rounded-3xl border border-white text-center">
+                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                   {selectedTeacher.profile_id ? 'Portal Access Enabled' : 'Portal Access Not Initialized'}
+                 </p>
               </div>
             )}
           </div>
 
           {/* Assignments Section */}
-          <div className="space-y-6">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+          <div className="space-y-6 pt-6 border-t border-slate-100">
+            <div className="flex items-center justify-between">
               <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
-                <BookOpen className="h-4 w-4" /> Academic Domain load
+                <BookOpen className="h-4 w-4" /> Academic Course Load
               </h3>
               {!isEditing && (
                 <button
-                  onClick={() => {
-                    setIsAssignModalOpen(true);
-                  }}
+                  onClick={() => setIsAssignModalOpen(true)}
                   className="px-4 py-2 bg-indigo-50 border border-indigo-100 text-indigo-600 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all shadow-sm"
                 >
                   New Assignment
@@ -256,7 +264,7 @@ export const TeacherDetailModal: React.FC<TeacherDetailModalProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {teacherAssignments.length === 0 ? (
                 <div className="col-span-full py-12 text-center bg-slate-50 rounded-[2.5rem] border-2 border-dashed border-slate-100">
-                  <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">No Active Course load Detected</p>
+                  <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">No Active Course load</p>
                 </div>
               ) : (
                 teacherAssignments.map((assignment) => (
@@ -276,12 +284,10 @@ export const TeacherDetailModal: React.FC<TeacherDetailModalProps> = ({
                         </div>
                         <div className="min-w-0">
                           <p className="text-sm font-black text-slate-900 tracking-tight truncate">{assignment.subject?.name}</p>
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{assignment.class ? `Grade ${assignment.class.grade} · ${assignment.class.section}` : 'N/A'}</p>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                            Grade {assignment.class?.grade}{assignment.class?.section}
+                          </p>
                         </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <span className="px-2 py-1 bg-slate-50 rounded-md text-[8px] font-black text-slate-500 uppercase tracking-widest">Academy Hub</span>
-                        <span className="px-2 py-1 bg-slate-50 rounded-md text-[8px] font-black text-slate-500 uppercase tracking-widest">{assignment.subject?.code || 'GEN-01'}</span>
                       </div>
                     </div>
                   </div>
@@ -290,16 +296,76 @@ export const TeacherDetailModal: React.FC<TeacherDetailModalProps> = ({
             </div>
           </div>
 
-          {/* Professional Roadmap / Lesson Plans */}
+          {/* Tasks Section */}
           <div className="space-y-6 pt-6 border-t border-slate-100">
-            <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
-              <ClipboardList className="h-4 w-4" /> Professional Strategy & Lesson Plans
-            </h3>
-            
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
+                <ClipboardList className="h-4 w-4" /> Lesson Directives
+              </h3>
+              {!isEditing && (
+                <button
+                  onClick={() => setIsTaskFormOpen(!isTaskFormOpen)}
+                  className="px-4 py-2 bg-emerald-50 border border-emerald-100 text-emerald-600 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
+                >
+                  {isTaskFormOpen ? 'Cancel' : 'Issue Directive'}
+                </button>
+              )}
+            </div>
+
+            {isTaskFormOpen && (
+              <div className="bg-slate-50 p-8 rounded-[2.5rem] border border-slate-100 space-y-4 animate-in slide-in-from-top-4 duration-300">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block ml-2 mb-2">Target Course</label>
+                    <select
+                      value={taskForm.assignment_id}
+                      onChange={(e) => setTaskForm({ ...taskForm, assignment_id: e.target.value })}
+                      className="w-full bg-white border border-slate-200 rounded-2xl p-4 outline-none focus:ring-4 focus:ring-emerald-500/5 font-black text-slate-900 text-xs"
+                    >
+                      <option value="">Select Subject/Grade</option>
+                      {teacherAssignments.map(a => (
+                        <option key={a.id} value={a.id}>{a.subject?.name} ({a.class?.grade}{a.class?.section})</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block ml-2 mb-2">Target Date</label>
+                    <input
+                      type="date"
+                      value={taskForm.target_date}
+                      onChange={(e) => setTaskForm({ ...taskForm, target_date: e.target.value })}
+                      className="w-full bg-white border border-slate-200 rounded-2xl p-4 outline-none focus:ring-4 focus:ring-emerald-500/5 font-black text-slate-900 text-xs"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block ml-2 mb-2">Task Description</label>
+                  <textarea
+                    value={taskForm.task_description}
+                    onChange={(e) => setTaskForm({ ...taskForm, task_description: e.target.value })}
+                    placeholder="e.g. Complete Chapter 4..."
+                    className="w-full bg-white border border-slate-200 rounded-2xl p-4 outline-none focus:ring-4 focus:ring-emerald-500/5 font-black text-slate-900 text-xs h-24 resize-none"
+                  />
+                </div>
+                <button
+                  onClick={async () => {
+                    if (!taskForm.assignment_id || !taskForm.task_description) return;
+                    await handleCreateTask(taskForm, () => {
+                      setIsTaskFormOpen(false);
+                      setTaskForm({ assignment_id: '', task_description: '', target_date: new Date().toISOString().split('T')[0] });
+                    });
+                  }}
+                  className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-800 transition-all flex items-center justify-center gap-3"
+                >
+                  <CheckCircle2 className="h-4 w-4 text-emerald-400" /> Dispatch Directive
+                </button>
+              </div>
+            )}
+
             {Object.keys(groupedTasks).length === 0 ? (
-               <div className="py-12 text-center bg-slate-50 rounded-[2.5rem] border-2 border-dashed border-slate-100">
-                  <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">No Lesson Directives Issued Yet</p>
-               </div>
+              <div className="py-12 text-center bg-slate-50 rounded-[2.5rem] border-2 border-dashed border-slate-100">
+                <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">No Lesson Directives</p>
+              </div>
             ) : (
               <div className="space-y-8">
                 {Object.entries(groupedTasks).map(([className, classTasks]: [string, any]) => (
@@ -310,32 +376,21 @@ export const TeacherDetailModal: React.FC<TeacherDetailModalProps> = ({
                       </div>
                       <div className="h-px flex-1 bg-slate-100" />
                     </div>
-                    
                     <div className="grid grid-cols-1 gap-3">
-                      {classTasks.sort((a: any, b: any) => new Date(b.target_date).getTime() - new Date(a.target_date).getTime()).map((task: any) => (
-                        <div key={task.id} className="bg-slate-50 border border-slate-100 rounded-2xl p-5 hover:bg-white hover:border-indigo-100 hover:shadow-lg hover:shadow-indigo-500/5 transition-all">
-                          <div className="flex justify-between items-start mb-3">
+                      {classTasks.map((task: any) => (
+                        <div key={task.id} className="bg-slate-50 border border-slate-100 rounded-2xl p-5 hover:bg-white transition-all">
+                          <div className="flex justify-between items-start mb-2">
                              <div className="flex items-center gap-2">
                                 <Calendar className="h-3 w-3 text-indigo-500" />
                                 <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">
-                                   {new Date(task.target_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
+                                   {new Date(task.target_date).toLocaleDateString()}
                                 </span>
                              </div>
                              <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${task.status === 'completed' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>
                                 {task.status}
                              </span>
                           </div>
-                          <p className="text-sm font-bold text-slate-700 leading-relaxed italic">
-                             "{task.task_description}"
-                          </p>
-                          <div className="mt-3 pt-3 border-t border-slate-200/50 flex items-center justify-between">
-                             <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">
-                                Assigned for: <span className="text-slate-900">{task.assignment?.subject?.name}</span>
-                             </p>
-                             <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest">
-                                By {task.admin?.username}
-                             </p>
-                          </div>
+                          <p className="text-sm font-bold text-slate-700 italic">"{task.task_description}"</p>
                         </div>
                       ))}
                     </div>
@@ -344,6 +399,7 @@ export const TeacherDetailModal: React.FC<TeacherDetailModalProps> = ({
               </div>
             )}
           </div>
+
         </div>
       </div>
     </div>

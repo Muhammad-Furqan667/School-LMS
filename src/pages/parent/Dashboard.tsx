@@ -16,6 +16,8 @@ import { ParentProfile } from '../../components/parent/ParentProfile';
 import { ParentOverview } from '../../components/parent/ParentOverview';
 import { ParentDiaryView } from '../../components/parent/ParentDiaryView';
 import { ParentFeesView } from '../../components/parent/ParentFeesView';
+import { AttendanceHistory } from '../../components/parent/AttendanceHistory';
+import { StudentTimetable } from '../../components/parent/StudentTimetable';
 
 const ParentDashboard: React.FC = () => {
   const [children, setChildren] = useState<any[]>([]);
@@ -29,6 +31,7 @@ const ParentDashboard: React.FC = () => {
   const [fees, setFees] = useState<any[]>([]);
   const [results, setResults] = useState<any[]>([]);
   const [attendanceStats, setAttendanceStats] = useState<any>(null);
+  const [attendanceHistory, setAttendanceHistory] = useState<any[]>([]);
 
   const navigate = useNavigate();
 
@@ -72,18 +75,20 @@ const ParentDashboard: React.FC = () => {
   const fetchChildDetails = async () => {
     if (!activeChild) return;
     try {
-      const [diaryData, timetableData, feeData, resultsData, attendanceData] = await Promise.all([
+      const [diaryData, timetableData, feeData, resultsData, attendanceData, attendanceLog] = await Promise.all([
         SchoolService.getDiaryForParent(activeChild.class_id || ''),
         SchoolService.getTimetable(activeChild.class_id || ''),
         SchoolService.getStudentFees(activeChild.id),
         SchoolService.getResults(activeChild.id),
-        SchoolService.getAttendanceStats(activeChild.id)
+        SchoolService.getAttendanceStats(activeChild.id),
+        SchoolService.getAttendanceHistory(activeChild.id)
       ]);
       setDiary(diaryData || []);
       setTimetable(timetableData || []);
       setFees(feeData || []);
       setResults(resultsData || []);
       setAttendanceStats(attendanceData || null);
+      setAttendanceHistory(attendanceLog || []);
     } catch (error) {
       console.error('Failed to fetch details:', error);
     }
@@ -119,6 +124,8 @@ const ParentDashboard: React.FC = () => {
       <Routes>
         <Route path="/" element={<ParentOverview isLocked={isLocked} fees={fees} timetable={timetable} diary={diary} results={results} activeChild={activeChild} parentData={parentData} />} />
         <Route path="/academics" element={<AcademicHub results={results} attendanceStats={attendanceStats} activeChild={activeChild} />} />
+        <Route path="/attendance" element={<div className="p-6 md:p-10"><h2 className="text-2xl font-black text-slate-900 mb-8 uppercase tracking-tight">Attendance Logs</h2><AttendanceHistory history={attendanceHistory} /></div>} />
+        <Route path="/timetable" element={<div className="p-6 md:p-10"><h2 className="text-2xl font-black text-slate-900 mb-8 uppercase tracking-tight">Class Timetable</h2><StudentTimetable timetable={timetable} /></div>} />
         <Route path="/fees" element={<ParentFeesView fees={fees} parentName={parentData?.full_name} />} />
         <Route path="/diary" element={<ParentDiaryView diary={diary} childName={activeChild?.name} parentName={parentData?.full_name} />} />
         <Route path="/profile" element={<ParentProfile parent={parentData} childrenData={children} />} />

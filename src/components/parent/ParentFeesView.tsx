@@ -46,9 +46,19 @@ export const ParentFeesView: React.FC<ParentFeesViewProps> = ({ fees, parentName
                  <div className="flex items-center gap-8">
                     <div className="text-right">
                        <p className="text-xl font-black text-slate-900 leading-none mb-1">Rs. {fee.amount_due?.toLocaleString()}</p>
-                       <p className="text-[10px] text-slate-400 font-bold uppercase">Amount Due</p>
+                       <p className="text-[10px] text-slate-400 font-bold uppercase">Total Bill</p>
                     </div>
-                    <div className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest ${fee.status?.toLowerCase() === 'paid' ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white shadow-lg'}`}>
+                    {fee.status?.toLowerCase() === 'partial' && (
+                       <div className="text-right border-l border-slate-200 pl-8">
+                          <p className="text-lg font-black text-rose-600 leading-none mb-1">Rs. {(fee.amount_due - (fee.amount_paid || 0)).toLocaleString()}</p>
+                          <p className="text-[10px] text-rose-400 font-bold uppercase">Balance Due</p>
+                       </div>
+                    )}
+                    <div className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest ${
+                      fee.status?.toLowerCase() === 'paid' ? 'bg-emerald-500 text-white' : 
+                      fee.status?.toLowerCase() === 'partial' ? 'bg-amber-500 text-white' : 
+                      'bg-red-500 text-white shadow-lg'
+                    }`}>
                        {fee.status}
                     </div>
                  </div>
@@ -81,8 +91,8 @@ export const ParentFeesView: React.FC<ParentFeesViewProps> = ({ fees, parentName
             <div className="p-8 space-y-6">
                <div className="bg-slate-50 rounded-[2rem] p-6 border border-slate-100">
                   <div className="space-y-4">
-                    {selectedFee.breakdown && selectedFee.breakdown.length > 0 ? (
-                      selectedFee.breakdown.map((item: any, idx: number) => (
+                    {(selectedFee.items || selectedFee.breakdown) && (selectedFee.items?.length > 0 || selectedFee.breakdown?.length > 0) ? (
+                      (selectedFee.items || selectedFee.breakdown).map((item: any, idx: number) => (
                         <div key={idx} className="flex justify-between items-center text-sm">
                            <span className="text-slate-500 font-bold">{item.category}</span>
                            <span className="text-slate-900 font-black">Rs. {parseFloat(item.amount).toLocaleString()}</span>
@@ -101,13 +111,26 @@ export const ParentFeesView: React.FC<ParentFeesViewProps> = ({ fees, parentName
                   </div>
                </div>
 
-               <div className="p-6 bg-indigo-900 rounded-[2rem] text-white flex items-center justify-between">
-                  <div>
-                    <p className="text-[10px] font-black text-white/50 uppercase mb-1">Current Status</p>
-                    <p className="text-lg font-black">{selectedFee.status}</p>
+               <div className="p-6 bg-indigo-900 rounded-[2rem] text-white space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-[10px] font-black text-white/50 uppercase mb-1">Current Status</p>
+                      <p className="text-lg font-black">{selectedFee.status}</p>
+                    </div>
+                    <div className="h-12 w-12 bg-white/10 rounded-2xl flex items-center justify-center">
+                      <Calculator className="h-6 w-6 text-white/60" />
+                    </div>
                   </div>
-                  <div className="h-12 w-12 bg-white/10 rounded-2xl flex items-center justify-center">
-                    <Calculator className="h-6 w-6 text-white/60" />
+                  
+                  <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/10">
+                    <div>
+                      <p className="text-[10px] font-black text-white/50 uppercase mb-1">Amount Paid</p>
+                      <p className="text-sm font-black text-emerald-400">Rs. {selectedFee.amount_paid?.toLocaleString() || '0'}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] font-black text-white/50 uppercase mb-1">Remaining</p>
+                      <p className="text-sm font-black text-rose-400">Rs. {(selectedFee.amount_due - (selectedFee.amount_paid || 0)).toLocaleString()}</p>
+                    </div>
                   </div>
                </div>
             </div>

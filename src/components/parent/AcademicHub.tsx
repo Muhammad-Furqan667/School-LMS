@@ -1,134 +1,127 @@
-import React from 'react';
-import { Target, Trophy, Calendar, CheckCircle2, AlertCircle, Clock, TrendingUp, BarChart3 } from 'lucide-react';
+import React, { useState } from 'react';
+import { Target, Trophy, Calendar, CheckCircle2, AlertCircle, Clock, TrendingUp, BarChart3, FileText, ClipboardList } from 'lucide-react';
+import { AttendanceHistory } from './AttendanceHistory';
+import { StudentTimetable } from './StudentTimetable';
 
 interface AcademicHubProps {
   results: any[];
   attendanceStats: any;
+  attendanceHistory: any[];
+  timetable: any[];
   activeChild: any;
 }
 
-export const AcademicHub: React.FC<AcademicHubProps> = ({ results, attendanceStats, activeChild }) => {
+export const AcademicHub: React.FC<AcademicHubProps> = ({ 
+  results, 
+  attendanceStats, 
+  attendanceHistory, 
+  timetable, 
+  activeChild 
+}) => {
+  const [activeTab, setActiveTab] = useState<'results' | 'attendance' | 'timetable'>('results');
+
+  // Group results by assessment title
+  const groupedResults = results.reduce((acc: any, res) => {
+    const title = res.assessment?.title || 'General Examination';
+    if (!acc[title]) acc[title] = [];
+    acc[title].push(res);
+    return acc;
+  }, {});
+
   return (
-    <div className="space-y-8 animate-in fade-in duration-700">
+    <div className="p-6 md:p-10 space-y-12 animate-in fade-in duration-700">
       {/* Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-slate-900 rounded-[2.5rem] p-8 text-white relative overflow-hidden shadow-2xl shadow-slate-200">
-           <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">Attendance Rate</p>
-           <h2 className="text-6xl font-black tabular-nums">{attendanceStats?.percentage || 0}%</h2>
-           <div className="flex items-center gap-2 mt-6 text-emerald-400 font-bold text-xs">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="bg-slate-900 rounded-[3rem] p-10 text-white relative overflow-hidden shadow-2xl">
+           <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">Assessment Average</p>
+           <h3 className="text-6xl font-black tabular-nums">
+              {results.length > 0 
+                 ? Math.round(results.reduce((acc, r) => acc + ((r.marks_obtained || 0) / (r.total_marks || 100) * 100), 0) / results.length)
+                 : 0}%
+           </h3>
+           <div className="flex items-center gap-2 mt-6 text-emerald-400 font-bold text-xs uppercase tracking-widest">
               <TrendingUp className="h-4 w-4" />
-              Keep it above 85%
+              Above Class Average
            </div>
            <div className="absolute -right-10 -bottom-10 h-40 w-40 bg-white/5 rounded-full blur-[80px]" />
         </div>
 
-        <div className="bg-white rounded-[2.5rem] p-8 border border-slate-200 flex flex-col justify-between shadow-sm">
+        <div className="bg-indigo-600 rounded-[3rem] p-10 text-white shadow-2xl relative overflow-hidden">
            <div>
-              <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">Assessment Average</p>
-              <h3 className="text-4xl font-black text-slate-900">
-                 {results.length > 0 
-                    ? Math.round(results.reduce((acc, r) => acc + ((r.marks_obtained || 0) / (r.total_marks || 100) * 100), 0) / results.length)
-                    : 0}%
-              </h3>
+              <p className="text-indigo-200 text-[10px] font-black uppercase tracking-widest mb-1">Academic Batch</p>
+              <h3 className="text-3xl font-black">Grade {activeChild?.classes?.grade}{activeChild?.classes?.section}</h3>
+              <p className="text-indigo-200 text-xs font-bold mt-2 uppercase tracking-widest">{activeChild?.classes?.academic_years?.year_label} Session</p>
            </div>
-           <div className="flex items-center gap-4 mt-8">
-              <div className="flex -space-x-2">
-                 {[1,2,3].map(i => (
-                   <div key={i} className="h-8 w-8 rounded-full border-2 border-white bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-400">
-                      {i}
+           <div className="absolute right-10 bottom-10 h-20 w-20 bg-white/10 rounded-3xl flex items-center justify-center backdrop-blur-md">
+              <Trophy className="h-10 w-10 text-white" />
+           </div>
+        </div>
+      </div>
+
+      <section className="space-y-8">
+          <div className="flex items-center justify-between px-2">
+             <div className="flex items-center gap-4">
+                <div className="h-12 w-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 shadow-sm border border-indigo-100">
+                   <Target className="h-6 w-6" />
+                </div>
+                <h2 className="text-3xl font-black text-slate-900 tracking-tight uppercase">Achievement Registry</h2>
+             </div>
+             <button 
+               onClick={() => window.print()}
+               className="hidden md:flex items-center gap-2 px-8 py-4 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl active:scale-95"
+             >
+               Export Academic Record
+             </button>
+          </div>
+
+          <div className="grid gap-8">
+            {Object.keys(groupedResults).length === 0 ? (
+               <div className="py-20 text-center bg-white rounded-[3rem] border-2 border-dashed border-slate-100">
+                  <AlertCircle className="h-10 w-10 text-slate-200 mx-auto mb-4" />
+                  <p className="text-slate-400 font-black italic">No achievement records detected for the current session.</p>
+               </div>
+            ) : Object.entries(groupedResults).map(([title, items]: [string, any]) => (
+              <div key={title} className="bg-white rounded-[2.5rem] border border-slate-200 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-500">
+                <div className="p-8 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between">
+                   <div className="flex items-center gap-4">
+                      <div className="h-12 w-12 bg-white rounded-2xl border border-slate-200 flex items-center justify-center text-indigo-600 shadow-sm">
+                         <FileText className="h-6 w-6" />
+                      </div>
+                      <div>
+                         <h3 className="font-black text-slate-900 text-lg">{title}</h3>
+                         <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">
+                            Official Assessment Log
+                         </p>
+                      </div>
                    </div>
-                 ))}
+                </div>
+                <div className="p-4">
+                   <table className="w-full text-left">
+                      <tbody className="divide-y divide-slate-50">
+                         {items.map((res: any, idx: number) => (
+                           <tr key={idx} className="hover:bg-slate-50/50 transition-colors group">
+                              <td className="px-8 py-6">
+                                 <p className="font-black text-slate-900 text-sm uppercase tracking-tight group-hover:text-indigo-600 transition-colors">{res.subjects?.name}</p>
+                              </td>
+                              <td className="px-8 py-6 text-right">
+                                 <div className="inline-flex items-end gap-2 bg-slate-50 px-6 py-3 rounded-2xl border border-slate-100">
+                                    <span className="text-xl font-black text-slate-900">
+                                       {res.marks_obtained}
+                                    </span>
+                                    <span className="text-xs font-bold text-slate-400 mb-1">
+                                       / {res.total_marks}
+                                    </span>
+                                 </div>
+                              </td>
+                           </tr>
+                         ))}
+                      </tbody>
+                   </table>
+                </div>
               </div>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Compared to class avg</span>
-           </div>
-        </div>
-
-        <div className="bg-indigo-50 rounded-[2.5rem] p-8 border border-indigo-100 flex flex-col justify-between shadow-sm">
-           <div>
-              <p className="text-indigo-400 text-[10px] font-black uppercase tracking-widest mb-1">Latest Badge</p>
-              <h3 className="text-xl font-black text-indigo-900">Active Learner</h3>
-           </div>
-           <div className="h-16 w-16 bg-white rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-200/50">
-              <Trophy className="h-8 w-8 text-indigo-600" />
-           </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Results List */}
-        <section className="bg-surface rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
-            <div className="p-8 border-b border-slate-100 flex items-center justify-between">
-               <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
-                  <Target className="h-5 w-5 text-primary" />
-                  Examination Marks
-               </h2>
-               <div className="px-3 py-1 bg-slate-50 border border-slate-100 rounded-lg text-[10px] font-black text-slate-400 uppercase">Session 2026</div>
-            </div>
-            <div className="overflow-x-auto">
-               <table className="w-full text-left">
-                  <thead className="bg-slate-50 text-slate-400 text-[10px] uppercase font-black tracking-widest">
-                     <tr>
-                        <th className="px-8 py-4">Subject</th>
-                        <th className="px-8 py-4">Total</th>
-                        <th className="px-8 py-4 text-right">Obtained</th>
-                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                     {results.map((res, idx) => (
-                       <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
-                          <td className="px-8 py-6">
-                             <p className="font-black text-slate-900 text-sm uppercase tracking-tight">{res.subjects?.name}</p>
-                             <p className="text-[10px] text-slate-400 font-bold">{res.exam_type}</p>
-                          </td>
-                          <td className="px-8 py-6 font-bold text-slate-400 text-sm whitespace-nowrap">{res.total_marks}</td>
-                          <td className="px-8 py-6 text-right">
-                             <span className={`text-sm font-black ${(res.marks_obtained || 0) / (res.total_marks || 1) < 0.4 ? 'text-red-500' : 'text-emerald-600'}`}>
-                                {res.marks_obtained || 0}
-                             </span>
-                          </td>
-                       </tr>
-                     ))}
-                  </tbody>
-               </table>
-               {results.length === 0 && (
-                 <div className="py-20 text-center text-slate-400 italic text-sm">No exam results recorded for this session.</div>
-               )}
-            </div>
-        </section>
-
-        {/* Attendance Breakdown */}
-        <section className="bg-surface rounded-3xl border border-slate-200 p-8 shadow-sm">
-            <h2 className="text-xl font-black text-slate-900 mb-8 flex items-center gap-2">
-               <Calendar className="h-5 w-5 text-indigo-600" />
-               Daily Log Summary
-            </h2>
-            <div className="space-y-6">
-               <div className="grid grid-cols-3 gap-4">
-                  {[
-                    { label: 'Present', count: attendanceStats?.present || 0, color: 'emerald', icon: CheckCircle2 },
-                    { label: 'Late', count: attendanceStats?.late || 0, color: 'amber', icon: Clock },
-                    { label: 'Absent', count: attendanceStats?.absent || 0, color: 'red', icon: AlertCircle }
-                  ].map((stat) => (
-                    <div key={stat.label} className={`p-4 bg-${stat.color}-50 rounded-2xl border border-${stat.color}-100`}>
-                       <stat.icon className={`h-4 w-4 text-${stat.color}-600 mb-2`} />
-                       <p className="text-[10px] font-black text-slate-400 uppercase leading-none mb-1">{stat.label}</p>
-                       <p className={`text-xl font-black text-${stat.color}-700`}>{stat.count}</p>
-                    </div>
-                  ))}
-               </div>
-
-               <div className="p-6 bg-slate-50/50 rounded-3xl border border-slate-100">
-                  <h4 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
-                     <BarChart3 className="h-4 w-4 text-slate-400" />
-                     Academic Insights
-                  </h4>
-                  <p className="text-xs text-slate-500 leading-relaxed">
-                     Student attendance is correlated with academic performance. {activeChild.name} is currently showing a stable attendance record.
-                  </p>
-               </div>
-            </div>
-        </section>
-      </div>
+            ))}
+          </div>
+      </section>
     </div>
   );
 };

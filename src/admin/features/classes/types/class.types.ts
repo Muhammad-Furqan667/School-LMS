@@ -5,6 +5,7 @@ export interface Class {
   academic_year_id?: string;
   academic_years?: {
     year_label: string;
+    is_current: boolean;
   };
   class_teacher_id?: string;
   class_teacher?: {
@@ -18,6 +19,7 @@ export interface ClassFormState {
   grade: string;
   section: string;
   class_teacher_id: string;
+  academic_year_id: string;
 }
 
 export interface TimetableSlot {

@@ -12,7 +12,7 @@ export const useAcademicRecords = () => {
     try {
       const { data: resultsData, error } = await (supabase as any)
         .from('results')
-        .select('*, subjects(*), academic_years(*)')
+        .select('*, subjects(*), academic_years(*), assessment:assessments(*)')
         .eq('student_id', selectedStudent.id);
 
       if (error) throw error;
@@ -30,8 +30,14 @@ export const useAcademicRecords = () => {
         };
       });
 
+      const currentAssessmentResults = (resultsData || []).filter((r: any) => 
+        r.academic_year_id === selectedStudent.classes?.academic_year_id && r.assessment_id
+      );
+
       const pastMap: Record<string, any> = {};
       (resultsData || []).forEach((r: any) => {
+        if (!r.assessment_id) return; // Only process assessment-based results
+        
         if (r.academic_year_id !== selectedStudent.classes?.academic_year_id) {
           const yearLabel = r.academic_years?.year_label || 'Archives';
           if (!pastMap[yearLabel]) {
@@ -49,7 +55,7 @@ export const useAcademicRecords = () => {
       });
 
       setAcademicResults({
-        current: currentYearResults,
+        current: currentAssessmentResults,
         past: Object.values(pastMap).sort((a: any, b: any) => b.label.localeCompare(a.label))
       });
     } catch (error) {

@@ -66,21 +66,38 @@ export const AssignModeratorModal: React.FC<AssignModeratorModalProps> = ({
               </select>
             </div>
 
-            <div className="bg-amber-50 rounded-2xl p-6 border border-amber-100">
-              <p className="text-[11px] font-bold text-amber-700 leading-relaxed italic">
-                "The Section Moderator will have exclusive authority to mark attendance for this specific grade and section."
-              </p>
-            </div>
+            {!selectedClass.academic_years?.is_current && (
+              <div className="bg-red-50 rounded-2xl p-6 border border-red-100 flex items-start gap-3">
+                <div className="h-5 w-5 bg-red-100 rounded-full flex items-center justify-center text-red-600 flex-shrink-0 mt-0.5">
+                   <span className="font-black text-xs">!</span>
+                </div>
+                <p className="text-[11px] font-black text-red-700 uppercase tracking-tight leading-relaxed">
+                  Moderator assignment is restricted to the current session only. This class belongs to a legacy or future session.
+                </p>
+              </div>
+            )}
+
+            {selectedClass.academic_years?.is_current && (
+              <div className="bg-amber-50 rounded-2xl p-6 border border-amber-100">
+                <p className="text-[11px] font-bold text-amber-700 leading-relaxed italic">
+                  "The Section Moderator will have exclusive authority to mark attendance for this specific grade and section."
+                </p>
+              </div>
+            )}
 
             <button
               onClick={handleConfirm}
-              disabled={isSubmitting}
-              className="w-full py-5 bg-slate-900 text-white font-black rounded-2xl hover:bg-indigo-600 transition-all flex items-center justify-center gap-3 shadow-xl shadow-slate-200"
+              disabled={isSubmitting || !selectedClass.academic_years?.is_current}
+              className={`w-full py-5 font-black rounded-2xl transition-all flex items-center justify-center gap-3 shadow-xl ${
+                !selectedClass.academic_years?.is_current
+                  ? 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-none'
+                  : 'bg-slate-900 text-white hover:bg-indigo-600 shadow-slate-200'
+              }`}
             >
               {isSubmitting ? (
                 <div className="h-5 w-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
               ) : (
-                <>Update Moderator Access</>
+                <>{!selectedClass.academic_years?.is_current ? 'Assignment Locked' : 'Update Moderator Access'}</>
               )}
             </button>
           </div>

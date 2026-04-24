@@ -18,7 +18,7 @@ export const TeacherProfile: React.FC<TeacherProfileProps> = ({ teacher, profile
                </div>
             </div>
             <div className="pb-4">
-               <h1 className="text-3xl font-black text-slate-900">{teacher.full_name}</h1>
+               <h1 className="text-3xl font-black text-slate-900">{teacher?.full_name || 'Faculty Member'}</h1>
                <div className="flex items-center gap-2 text-indigo-600 font-bold uppercase text-[10px] tracking-widest mt-1">
                   <ShieldCheck className="h-3 w-3" />
                   Verified Faculty Member
@@ -41,7 +41,7 @@ export const TeacherProfile: React.FC<TeacherProfileProps> = ({ teacher, profile
                   </div>
                   <div>
                      <p className="text-[10px] font-black text-slate-400 uppercase">School Email</p>
-                     <p className="text-sm font-bold text-slate-700">{profile.username.toLowerCase()}@schooling.app</p>
+                     <p className="text-sm font-bold text-slate-700">{profile?.username?.toLowerCase() || 'faculty'}@schooling.app</p>
                   </div>
                </div>
                <div className="flex items-center gap-4">
@@ -50,7 +50,7 @@ export const TeacherProfile: React.FC<TeacherProfileProps> = ({ teacher, profile
                   </div>
                   <div>
                      <p className="text-[10px] font-black text-slate-400 uppercase">Joined Date</p>
-                     <p className="text-sm font-bold text-slate-700">{new Date(teacher.created_at).toLocaleDateString()}</p>
+                     <p className="text-sm font-bold text-slate-700">{teacher?.created_at ? new Date(teacher.created_at).toLocaleDateString() : 'N/A'}</p>
                   </div>
                </div>
                <div className="flex items-center gap-4">
@@ -59,7 +59,7 @@ export const TeacherProfile: React.FC<TeacherProfileProps> = ({ teacher, profile
                   </div>
                   <div>
                      <p className="text-[10px] font-black text-slate-400 uppercase">Employee ID</p>
-                     <p className="text-sm font-bold text-slate-700">#EMP-{teacher.id.slice(0, 8).toUpperCase()}</p>
+                     <p className="text-sm font-bold text-slate-700">#EMP-{teacher?.id ? teacher.id.slice(0, 8).toUpperCase() : '00000000'}</p>
                   </div>
                </div>
             </div>

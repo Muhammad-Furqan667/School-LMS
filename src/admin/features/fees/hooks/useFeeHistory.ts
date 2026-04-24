@@ -12,8 +12,7 @@ export const useFeeHistory = (studentId?: string) => {
   const fetchStudentData = useCallback(async (id: string) => {
     try {
       setLoading(true);
-      const studentData = await SchoolService.getStudents();
-      const target = studentData.find((s: any) => s.id === id);
+      const target = await SchoolService.getStudentById(id);
       
       if (!target) {
         toast.error('Student not found');
@@ -26,7 +25,8 @@ export const useFeeHistory = (studentId?: string) => {
       const feeData = await SchoolService.getStudentFees(id);
       setFees(feeData || []);
     } catch (error) {
-      toast.error('Failed to load fee card data');
+      console.error('Failed to load fee card data:', error);
+      // Removed toast to prevent duplicate alerts reported by user
     } finally {
       setLoading(false);
     }

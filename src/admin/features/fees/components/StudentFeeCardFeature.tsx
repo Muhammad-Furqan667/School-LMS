@@ -15,13 +15,28 @@ import { useFeeHistory } from '../hooks/useFeeHistory';
 import { FeeCardHeader } from './FeeCardHeader';
 import { FeeStatsBar } from './FeeStatsBar';
 import { FeeLedgerTable } from './FeeLedgerTable';
+import { SchoolService } from '../../../../services/schoolService';
 
 export const StudentFeeCardFeature: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const { student, fees, loading, stats } = useFeeHistory(id);
+  const { student, fees, loading, stats, fetchStudentData } = useFeeHistory(id);
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleUpdateStatus = async (feeId: string, amount: number) => {
+    try {
+      const fee = fees.find(f => f.id === feeId);
+      if (!fee) return;
+
+      await SchoolService.updateFeeStatus(feeId, 'Paid', amount);
+      
+      // Refresh data
+      if (id) fetchStudentData(id);
+    } catch (error) {
+      console.error('Failed to update fee status:', error);
+    }
   };
 
   if (loading) {
@@ -38,6 +53,78 @@ export const StudentFeeCardFeature: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-10 animate-in fade-in duration-500">
       <div className="max-w-5xl mx-auto space-y-8">
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media print {
+          @page { size: A4; margin: 10mm; }
+          body { background: white !important; color: black !important; }
+          .print\\:hidden, .no-print, button, nav, .flex.gap-3 { display: none !important; }
+          
+          #fee-card-printable { 
+            border: none !important; 
+            box-shadow: none !important; 
+            margin: 0 !important; 
+            padding: 0 !important;
+            width: 100% !important;
+            display: block !important;
+          }
+
+          /* Force colors and backgrounds for printing */
+          * { 
+            -webkit-print-color-adjust: exact !important; 
+            print-color-adjust: exact !important; 
+            color-scheme: light !important;
+          }
+
+          .bg-slate-900 { 
+            background: white !important; 
+            color: black !important; 
+            border-bottom: 3px solid black !important; 
+          }
+          
+          .text-white, .text-white\\/60, .text-emerald-400 { 
+            color: black !important; 
+          }
+
+          .bg-emerald-600, .bg-emerald-500 {
+            background: #f0fdf4 !important;
+            color: #166534 !important;
+            border: 1px solid #bbf7d0 !important;
+          }
+
+          .bg-slate-50, .bg-slate-100 {
+            background: white !important;
+            border: 1px solid #e2e8f0 !important;
+          }
+
+          .rounded-\\[3rem\\], .rounded-\\[2\\.5rem\\], .rounded-2xl { 
+            border-radius: 4px !important; 
+          }
+
+          table { 
+            width: 100% !important; 
+            border-collapse: collapse !important;
+            margin-top: 20px !important;
+          }
+          
+          th, td { 
+            border: 1px solid #e2e8f0 !important;
+            padding: 8px !important;
+            color: black !important;
+          }
+
+          th { background: #f8fafc !important; }
+
+          .print-copy-label { 
+            display: block !important; 
+            font-size: 24pt; 
+            font-weight: bold; 
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid black;
+            padding-bottom: 10px;
+          }
+        }
+      `}} />
         {/* Header - Non-Printable */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 print:hidden">
           <Link 
@@ -56,10 +143,6 @@ export const StudentFeeCardFeature: React.FC = () => {
             >
               <Printer className="h-4 w-4" />
               Print Card
-            </button>
-            <button className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-white border border-slate-200 text-slate-600 rounded-2xl font-black text-sm hover:bg-slate-50 transition-all shadow-sm">
-              <Download className="h-4 w-4" />
-              Export PDF
             </button>
           </div>
         </div>
@@ -119,7 +202,12 @@ export const StudentFeeCardFeature: React.FC = () => {
               </section>
             </div>
 
-            <FeeLedgerTable fees={fees} totalDue={stats.totalDue} totalPaid={stats.totalPaid} />
+            <FeeLedgerTable 
+              fees={fees} 
+              totalDue={stats.totalDue} 
+              totalPaid={stats.totalPaid} 
+              onUpdateStatus={handleUpdateStatus}
+            />
 
             {/* Footer Institutional Stamps */}
             <div className="pt-20 border-t border-slate-100 flex flex-col md:flex-row justify-between items-end gap-10">

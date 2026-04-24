@@ -27,7 +27,6 @@ export const AdminLayout: React.FC = () => {
     { label: 'Promotions', path: '/admin/promotions', icon: ArrowUpRight },
     { label: 'Courses', path: '/admin/courses', icon: BookOpen },
     { label: 'Teachers', path: '/admin/teachers', icon: GraduationCap },
-    { label: 'System Audit', path: '/admin/audit', icon: ShieldCheck },
   ];
 
   const handleLogout = async () => {

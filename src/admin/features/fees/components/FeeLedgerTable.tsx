@@ -5,9 +5,10 @@ interface FeeLedgerTableProps {
   fees: any[];
   totalDue: number;
   totalPaid: number;
+  onUpdateStatus?: (feeId: string, amount: number) => void;
 }
 
-export const FeeLedgerTable: React.FC<FeeLedgerTableProps> = ({ fees, totalDue, totalPaid }) => {
+export const FeeLedgerTable: React.FC<FeeLedgerTableProps> = ({ fees, totalDue, totalPaid, onUpdateStatus }) => {
   return (
     <section>
       <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-8 flex items-center gap-3">
@@ -20,11 +21,11 @@ export const FeeLedgerTable: React.FC<FeeLedgerTableProps> = ({ fees, totalDue, 
         <table className="w-full text-left border-collapse">
           <thead className="bg-[#f8fafc] border-b border-slate-100">
             <tr>
-              <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Billing Cycle</th>
+              <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Billing Cycle & Items</th>
               <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Bill</th>
-              <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Paid Date</th>
               <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Status</th>
               <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Recovery</th>
+              <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center print:hidden">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
@@ -36,17 +37,18 @@ export const FeeLedgerTable: React.FC<FeeLedgerTableProps> = ({ fees, totalDue, 
               </tr>
             ) : (
               fees.map((f) => (
-                <tr key={f.id} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="px-8 py-5 font-black text-slate-900">{f.month}</td>
-                  <td className="px-8 py-5 text-sm font-bold text-slate-500 group-hover:text-slate-900 transition-colors">PKR {Number(f.amount_due).toLocaleString()}</td>
-                  <td className="px-8 py-5 text-xs text-slate-400 font-bold uppercase tracking-widest">
-                    {f.status?.toLowerCase() === 'paid' ? (
-                      <span className="flex items-center gap-2 group-hover:text-emerald-600 transition-colors">
-                        <Clock className="h-3.5 w-3.5" />
-                        {new Date(f.created_at).toLocaleDateString()}
-                      </span>
-                    ) : 'Pending Collection'}
+                <tr key={f.id} className="hover:bg-slate-50/50 transition-colors group">
+                  <td className="px-8 py-5">
+                    <p className="font-black text-slate-900 mb-1">{f.month}</p>
+                    <div className="flex flex-wrap gap-1">
+                      {(f.items || f.breakdown || []).map((item: any, idx: number) => (
+                        <span key={idx} className="text-[9px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md">
+                          {item.category}: {item.amount}
+                        </span>
+                      ))}
+                    </div>
                   </td>
+                  <td className="px-8 py-5 text-sm font-bold text-slate-500 group-hover:text-slate-900 transition-colors">PKR {Number(f.amount_due).toLocaleString()}</td>
                   <td className="px-8 py-5 text-center">
                     <div className={`mx-auto w-fit px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest border ${
                       f.status?.toLowerCase() === 'paid' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 
@@ -57,6 +59,16 @@ export const FeeLedgerTable: React.FC<FeeLedgerTableProps> = ({ fees, totalDue, 
                   </td>
                   <td className="px-8 py-5 text-right font-black text-slate-900">
                     PKR {Number(f.amount_paid).toLocaleString()}
+                  </td>
+                  <td className="px-8 py-5 text-center print:hidden">
+                    {f.status?.toLowerCase() !== 'paid' && onUpdateStatus && (
+                      <button 
+                        onClick={() => onUpdateStatus(f.id, f.amount_due)}
+                        className="px-4 py-2 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-lg active:scale-95"
+                      >
+                        Mark Paid
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))

@@ -46,11 +46,14 @@ const Layout: React.FC<LayoutProps> = ({ profile }) => {
     // Teacher Optimized Hub
     { icon: CalendarCheck2, label: 'Attendance', path: '/teacher/attendance', roles: ['teacher'] },
     { icon: Users, label: 'My Classes', path: '/teacher/classes', roles: ['teacher'] },
+    { icon: GraduationCap, label: 'My Students', path: '/teacher/students', roles: ['teacher'] },
     { icon: Wallet, label: 'Salary Record', path: '/teacher/salary', roles: ['teacher'] },
     { icon: User, label: 'My Profile', path: '/teacher/profile', roles: ['teacher'] },
     // Parent Optimized Hub
     { icon: BookOpen, label: 'Diary', path: '/parent/diary', roles: ['parent'] },
-    { icon: CalendarCheck2, label: 'Academics', path: '/parent/academics', roles: ['parent'] },
+    { icon: CalendarCheck2, label: 'Attendance Logs', path: '/parent/attendance', roles: ['parent'] },
+    { icon: LayoutDashboard, label: 'Class Timetable', path: '/parent/timetable', roles: ['parent'] },
+    { icon: GraduationCap, label: 'Exam Results', path: '/parent/academics', roles: ['parent'] },
     { icon: CreditCard, label: 'Fee History', path: '/parent/fees', roles: ['parent'] },
     { icon: User, label: 'My Profile', path: '/parent/profile', roles: ['parent'] },
   ].filter(item => profile && item.roles.includes(profile.role));

@@ -67,6 +67,11 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({
               <span className="text-white/60 text-[10px] font-bold uppercase tracking-widest">
                 Grade: {selectedStudent.classes?.grade || 'N/A'}
               </span>
+              {selectedStudent.parents?.profiles?.username && (
+                <span className="w-full mt-2 px-3 py-2 bg-white/5 rounded-xl text-[10px] font-black uppercase tracking-widest text-white/40 border border-white/5">
+                  Login ID: {selectedStudent.parents.profiles.username}
+                </span>
+              )}
             </div>
           </div>
 
@@ -91,7 +96,6 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({
           {activeTab === 'profile' ? (
             <ProfileTab
               selectedStudent={selectedStudent}
-              classes={classes}
               studentFees={studentFees}
               loadingFees={loadingFees}
               setFeeForm={setFeeForm}

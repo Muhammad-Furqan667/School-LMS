@@ -35,8 +35,8 @@ export const useStudentFees = () => {
         amount_due: totalFeeAmount,
         amount_paid: parseFloat(feeForm.amount_paid),
         status: feeForm.status,
-        breakdown: feeForm.items,
-        year_id: years?.id
+        items: feeForm.items,
+        academic_year_id: years?.id
       });
       toast.success(feeForm.id ? 'Fee record updated' : 'Fee record saved');
       onSuccess();

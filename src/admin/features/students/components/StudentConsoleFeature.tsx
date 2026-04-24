@@ -17,7 +17,7 @@ import type { Student, StudentFormState, FeeFormState } from '../types/student.t
 
 export const StudentConsoleFeature: React.FC = () => {
   // Hooks
-  const { students, classes, loading: dataLoading, fetchAll, handleDeleteStudent } = useStudentsData();
+  const { students, classes, sessions, loading: dataLoading, fetchAll, handleDeleteStudent } = useStudentsData();
   const { academicResults, fetchAcademicResults, handleUpdateResult } = useAcademicRecords();
   const { studentFees, loadingFees, fetchStudentFees, handleIssueFee } = useStudentFees();
 
@@ -40,6 +40,8 @@ export const StudentConsoleFeature: React.FC = () => {
     cnic: '',
     parent_cnic: '',
     password: '',
+    admission_date: new Date().toISOString().split('T')[0],
+    academic_year_id: '',
     id: undefined
   });
 
@@ -94,10 +96,23 @@ export const StudentConsoleFeature: React.FC = () => {
         cnic: student.cnic || '',
         parent_cnic: student.parent_cnic || '',
         password: '',
+        admission_date: student.admission_date || new Date().toISOString().split('T')[0],
+        academic_year_id: student.classes?.academic_year_id || '',
         id: student.id
       });
     } else {
-      setStudentForm({ name: '', roll_no: '', class_id: '', father_name: '', cnic: '', parent_cnic: '', password: '', id: undefined });
+      setStudentForm({ 
+        name: '', 
+        roll_no: '', 
+        class_id: '', 
+        father_name: '', 
+        cnic: '', 
+        parent_cnic: '', 
+        password: '', 
+        admission_date: new Date().toISOString().split('T')[0],
+        academic_year_id: '',
+        id: undefined 
+      });
     }
     setIsEditModalOpen(true);
   };
@@ -133,7 +148,8 @@ export const StudentConsoleFeature: React.FC = () => {
         class_id: studentForm.class_id || null,
         father_name: studentForm.father_name,
         cnic: studentForm.cnic,
-        parent_cnic: studentForm.parent_cnic
+        parent_cnic: studentForm.parent_cnic,
+        admission_date: studentForm.admission_date
       };
       if (studentForm.id) payload.id = studentForm.id;
 
@@ -145,7 +161,18 @@ export const StudentConsoleFeature: React.FC = () => {
 
       toast.success(studentForm.id ? 'Student updated' : 'Student enrolled & portal initialized');
       setIsEditModalOpen(false);
-      setStudentForm({ name: '', roll_no: '', class_id: '', father_name: '', cnic: '', parent_cnic: '', password: '', id: undefined });
+      setStudentForm({ 
+        name: '', 
+        roll_no: '', 
+        class_id: '', 
+        father_name: '', 
+        cnic: '', 
+        parent_cnic: '', 
+        password: '', 
+        admission_date: new Date().toISOString().split('T')[0],
+        academic_year_id: '',
+        id: undefined 
+      });
       fetchAll();
     } catch (error) {
       toast.error('Failed to save student');
@@ -228,6 +255,7 @@ export const StudentConsoleFeature: React.FC = () => {
           studentForm={studentForm}
           setStudentForm={setStudentForm}
           classes={classes}
+          sessions={sessions}
           loading={formLoading}
           onClose={() => setIsEditModalOpen(false)}
           onSubmit={onEnrollSubmit}

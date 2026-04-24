@@ -110,22 +110,44 @@ export const useTeacherActions = (fetchAll: () => void) => {
     }
   };
 
-  const handleAssignModerator = async (teacherId: string, classId: string) => {
+  const handleAssignModerator = async (teacherId: string, classId: string, onSuccess?: (updatedTeacher: Teacher) => void) => {
     try {
       setLoading(true);
+      console.log('Assigning moderator:', { teacherId, classId });
       
-      // 1. If a classId is provided, assign this teacher to that class
+      // 1. Clear this teacher from ANY other classes they might be moderating
+      // This ensures a clean state and avoids multiple assignments
+      const all_classes = await SchoolService.getClasses();
+      const currentAssignments = all_classes.filter(c => c.class_teacher_id === teacherId);
+      
+      for (const c of currentAssignments) {
+        if (c.id !== classId) {
+          console.log('Clearing old moderator role from class:', c.id);
+          await SchoolService.upsertClass({ id: c.id, class_teacher_id: null });
+        }
+      }
+
+      // 2. Assign to the new class if provided
       if (classId) {
+        // STRICT VALIDATION: Ensure teacher has a subject in this class
+        const teacher = await SchoolService.getTeacherById(teacherId);
+        const hasAssignment = teacher.teacher_assignments?.some((a: any) => a.class_id === classId);
+        
+        if (!hasAssignment) {
+          throw new Error('Teacher must have at least one subject assigned in this class before becoming a moderator.');
+        }
+
+        console.log('Setting new moderator role for class:', classId);
         await SchoolService.upsertClass({ id: classId, class_teacher_id: teacherId });
         toast.success('Section Moderator updated successfully');
       } else {
-        // 2. If no classId, it means we might want to remove this teacher from whatever class they are moderating
-        const all_classes = await SchoolService.getClasses();
-        const current_class = all_classes.find(c => c.class_teacher_id === teacherId);
-        if (current_class) {
-          await SchoolService.upsertClass({ id: current_class.id, class_teacher_id: null });
-          toast.success('Moderator privileges removed');
-        }
+        toast.success('Moderator privileges removed');
+      }
+      
+      // 3. Refresh data
+      if (onSuccess) {
+        const refreshed = await SchoolService.getTeacherById(teacherId);
+        onSuccess(refreshed);
       }
       fetchAll();
     } catch (err: any) {

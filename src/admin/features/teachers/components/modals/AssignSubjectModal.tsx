@@ -51,7 +51,10 @@ export const AssignSubjectModal: React.FC<AssignSubjectModalProps> = ({
                 className="w-full p-5 bg-slate-50 border border-slate-100 rounded-2xl outline-none appearance-none font-black text-slate-900"
               >
                 <option value="">Select Class / Grade</option>
-                {classes.map(c => <option key={c.id} value={c.id}>Grade {c.grade} - {c.section}</option>)}
+                {classes
+                  .filter(c => c.academic_years?.is_current)
+                  .map(c => <option key={c.id} value={c.id}>Grade {c.grade} - {c.section} ({c.academic_years?.year_label})</option>)
+                }
               </select>
               <ChevronRight className="absolute right-5 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-300 pointer-events-none rotate-90" />
             </div>

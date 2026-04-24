@@ -11,10 +11,10 @@ export const useGlobalAttendance = (initialDate: string) => {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await SchoolService.getAllAttendance(date);
+      const data = await SchoolService.getAllTeacherAttendance(date);
       setAttendance(data || []);
     } catch {
-      toast.error('Failed to load attendance');
+      toast.error('Failed to load teacher attendance');
     } finally {
       setLoading(false);
     }
@@ -25,9 +25,7 @@ export const useGlobalAttendance = (initialDate: string) => {
   }, [fetchData]);
 
   const filteredAttendance = attendance.filter(record => 
-    record.students?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    record.students?.roll_no?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    record.assignment?.subject?.name?.toLowerCase().includes(searchTerm.toLowerCase())
+    record.teacher?.full_name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const stats = {

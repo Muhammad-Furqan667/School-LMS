@@ -13,9 +13,9 @@ export const AttendanceLogTable: React.FC<AttendanceLogTableProps> = ({ attendan
         <table className="w-full text-left border-collapse">
           <thead className="bg-slate-50 text-[10px] uppercase font-black text-slate-400 tracking-widest">
             <tr>
-              <th className="px-6 py-5 whitespace-nowrap">Student Identity</th>
-              <th className="px-6 py-5 whitespace-nowrap">Course Assignment</th>
-              <th className="px-6 py-5 whitespace-nowrap">Instructor</th>
+              <th className="px-6 py-5 whitespace-nowrap">Faculty Member</th>
+              <th className="px-6 py-5 whitespace-nowrap">Department/Role</th>
+              <th className="px-6 py-5 whitespace-nowrap">Last Updated</th>
               <th className="px-6 py-5 whitespace-nowrap text-center">Status</th>
             </tr>
           </thead>
@@ -31,32 +31,57 @@ export const AttendanceLogTable: React.FC<AttendanceLogTableProps> = ({ attendan
               <tr>
                 <td colSpan={4} className="py-20 text-center text-slate-400">
                   <Calendar className="h-10 w-10 mx-auto mb-3 opacity-20" />
-                  <p className="text-xs font-black uppercase tracking-widest">No Attendance Logs Found</p>
+                  <p className="text-xs font-black uppercase tracking-widest">No Faculty Attendance Logs</p>
                 </td>
               </tr>
             ) : (
               attendance.map(a => (
-                <tr key={a.id} className="hover:bg-slate-50/50 transition-colors">
+                <tr key={a.teacher_id} className="hover:bg-slate-50/50 transition-colors">
                   <td className="px-6 py-4">
-                    <p className="font-black text-slate-900 text-sm whitespace-nowrap">{a.students?.name || 'Unknown User'}</p>
-                    <p className="text-[10px] font-bold text-slate-400 font-mono tracking-wider">{a.students?.roll_no}</p>
+                    <p className="font-black text-slate-900 text-sm whitespace-nowrap">{a.teacher?.full_name || 'Staff'}</p>
+                    <p className="text-[10px] font-bold text-slate-400 font-mono tracking-wider">{a.teacher_id?.slice(0, 8)}</p>
                   </td>
                   <td className="px-6 py-4">
-                    <p className="font-bold text-slate-700 text-sm">{a.assignment?.subject?.name || 'General Admission'}</p>
+                    <p className="font-bold text-slate-700 text-sm">Academic Faculty</p>
                     <p className="text-[10px] font-bold text-slate-400 tracking-widest uppercase">
-                      {a.assignment?.class ? `Class ${a.assignment.class.grade}-${a.assignment.class.section}` : 'N/A'}
+                      Full-Time Staff
                     </p>
                   </td>
                   <td className="px-6 py-4">
                     <span className="inline-flex px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold">
-                      {a.assignment?.teacher?.full_name || 'N/A'}
+                      {a.created_at ? new Date(a.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex justify-center">
-                      {a.status === 'present' && <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-xl text-xs font-black uppercase tracking-widest border border-emerald-100"><CheckCircle2 className="h-3.5 w-3.5" /> Present</span>}
-                      {a.status === 'absent' && <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-700 rounded-xl text-xs font-black uppercase tracking-widest border border-red-100"><XCircle className="h-3.5 w-3.5" /> Absent</span>}
-                      {a.status === 'late' && <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-700 rounded-xl text-xs font-black uppercase tracking-widest border border-amber-100"><Clock className="h-3.5 w-3.5" /> Late</span>}
+                    <div className="flex justify-center gap-2">
+                      {['present', 'absent', 'late'].map((status) => (
+                        <button
+                          key={status}
+                          onClick={async () => {
+                            try {
+                              await SchoolService.upsertTeacherAttendance({
+                                teacher_id: a.teacher_id,
+                                date: a.date,
+                                status: status
+                              });
+                              toast.success(`Marked ${a.teacher?.full_name} as ${status}`);
+                              // Refresh data
+                              if ((window as any).refreshGlobalAttendance) (window as any).refreshGlobalAttendance();
+                            } catch {
+                              toast.error('Failed to update attendance');
+                            }
+                          }}
+                          className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${
+                            a.status === status
+                            ? status === 'present' ? 'bg-emerald-600 text-white border-emerald-600' :
+                              status === 'absent' ? 'bg-red-600 text-white border-red-600' :
+                              'bg-amber-500 text-white border-amber-500'
+                            : 'bg-white text-slate-400 border-slate-200 hover:border-slate-300'
+                          }`}
+                        >
+                          {status}
+                        </button>
+                      ))}
                     </div>
                   </td>
                 </tr>

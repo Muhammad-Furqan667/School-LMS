@@ -85,7 +85,7 @@ export const HireTeacherModal: React.FC<HireTeacherModalProps> = ({
                 <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">Initial Class</label>
                 <select
                   value={hireForm.class_id}
-                  onChange={(e) => setHireForm({ ...hireForm, class_id: e.target.value })}
+                  onChange={(e) => setHireForm({ ...hireForm, class_id: e.target.value, subject_id: '' })}
                   className="w-full p-5 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:bg-white focus:ring-4 focus:ring-emerald-500/5 transition-all font-black text-slate-900 appearance-none cursor-pointer"
                 >
                   <option value="">Select Section</option>
@@ -97,14 +97,22 @@ export const HireTeacherModal: React.FC<HireTeacherModalProps> = ({
               <div>
                 <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">Primary Subject</label>
                 <select
+                  required
+                  disabled={!hireForm.class_id}
                   value={hireForm.subject_id}
                   onChange={(e) => setHireForm({ ...hireForm, subject_id: e.target.value })}
-                  className="w-full p-5 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:bg-white focus:ring-4 focus:ring-emerald-500/5 transition-all font-black text-slate-900 appearance-none cursor-pointer"
+                  className="w-full p-5 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:bg-white focus:ring-4 focus:ring-emerald-500/5 transition-all font-black text-slate-900 appearance-none cursor-pointer disabled:opacity-50"
                 >
-                  <option value="">Select Subject</option>
-                  {subjects.map(s => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
+                  <option value="">{hireForm.class_id ? "Select Subject" : "Select Class first"}</option>
+                  {hireForm.class_id && subjects
+                    .filter(s => {
+                      const cls = classes.find(c => c.id === hireForm.class_id);
+                      return cls && s.grade_level?.toString() === cls.grade.toString();
+                    })
+                    .map(s => (
+                      <option key={s.id} value={s.id}>{s.name} (Grade {s.grade_level})</option>
+                    ))
+                  }
                 </select>
               </div>
             </div>

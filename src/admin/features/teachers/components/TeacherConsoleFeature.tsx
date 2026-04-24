@@ -25,7 +25,7 @@ export const TeacherConsoleFeature: React.FC = () => {
     handleRemoveAssignment 
   } = useTeacherAssignments(fetchAll);
   
-  const { tasks, fetchTasks } = useTeacherTasks();
+  const { tasks, fetchTasks, handleCreateTask } = useTeacherTasks();
 
   // Local State
   const [searchTerm, setSearchTerm] = useState('');
@@ -190,8 +190,18 @@ export const TeacherConsoleFeature: React.FC = () => {
             handleSaveEdit={onSaveEditSubmit}
             handleDeleteTeacher={onDeleteSubmit}
             handleRemoveAssignment={onRemoveAssignmentSubmit}
-            handleAssignModerator={handleAssignModerator}
+            handleAssignModerator={async (tid, cid) => {
+              await handleAssignModerator(tid, cid, (refreshed) => {
+                setSelectedTeacher(refreshed);
+              });
+            }}
             setIsAssignModalOpen={setIsAssignModalOpen}
+            handleCreateTask={async (task, onSuccess) => {
+              await handleCreateTask(task, () => {
+                onSuccess();
+                if (selectedTeacher) fetchTasks(undefined, selectedTeacher.id);
+              });
+            }}
             classes={classes}
           />
         )}
