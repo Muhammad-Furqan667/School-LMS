@@ -1,10 +1,17 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #10b981;
+  --color-bg-slate: #f8fafc;
+  --color-surface: #ffffff;
+}
 
 @layer base {
   body {
-    @apply bg-slate-50 text-slate-900 antialiased;
+    background-color: var(--color-bg-slate);
+    color: var(--color-slate-900);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 }
@@ -14,15 +21,20 @@
   width: 6px;
 }
 .custom-scrollbar::-webkit-scrollbar-track {
-  @apply bg-slate-100;
+  background-color: var(--color-slate-100);
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  @apply bg-slate-300 rounded-full hover:bg-slate-400 transition-colors;
+  background-color: var(--color-slate-300);
+  border-radius: 9999px;
 }
+
 
 /* Glassmorphism Utilities */
 .glass-panel {
-  @apply bg-white/70 backdrop-blur-xl border border-white/20 shadow-2xl;
+  background-color: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
 }
 
 /* Animations */

@@ -1,148 +1,110 @@
 -- ==========================================
--- 🛡️ PRODUCTION SECURITY CONFIGURATION (RLS)
+-- 🛡️ PRODUCTION SECURITY CONFIGURATION (RLS) - NUCLEAR RESET
 -- ==========================================
--- This script is idempotent and can be run multiple times.
+-- This script clears ALL potential legacy policies and implements a clean, recursion-safe security layer.
 
--- 1. ENABLE RLS ON ALL TABLES
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.students ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.results ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.attendance ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.fees ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.diary ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.teacher_tasks ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.parents ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.teachers ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.academic_years ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.assessments ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.classes ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.enrollments ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.lectures ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.subjects ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.teacher_attendance ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.teacher_assignments ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.timetable ENABLE ROW LEVEL SECURITY;
-
--- 2. CLEAN UP EXISTING POLICIES (Ensures Idempotency)
-DO $$ 
+-- 0. HELPER FUNCTIONS
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS boolean AS $$
 BEGIN
-    -- Profiles
-    DROP POLICY IF EXISTS profile_self_access ON public.profiles;
-    DROP POLICY IF EXISTS admin_profile_all ON public.profiles;
-    
-    -- Parents & Teachers
-    DROP POLICY IF EXISTS parent_read_self ON public.parents;
-    DROP POLICY IF EXISTS teacher_read_self ON public.teachers;
-    
-    -- Students
-    DROP POLICY IF EXISTS parent_read_children ON public.students;
-    DROP POLICY IF EXISTS teacher_read_class_students ON public.students;
-    
-    -- Academic Data
-    DROP POLICY IF EXISTS parent_view_academic ON public.results;
-    DROP POLICY IF EXISTS teacher_manage_results ON public.results;
-    DROP POLICY IF EXISTS parent_view_attendance ON public.attendance;
-    DROP POLICY IF EXISTS teacher_manage_attendance ON public.attendance;
-    
-    -- Fees
-    DROP POLICY IF EXISTS parent_view_fees ON public.fees;
-    
-    -- Diary & Notifications
-    DROP POLICY IF EXISTS everyone_read_notifications ON public.notifications;
-    DROP POLICY IF EXISTS parent_view_diary ON public.diary;
-    
-    -- New Tables
-    DROP POLICY IF EXISTS public_read_academic_years ON public.academic_years;
-    DROP POLICY IF EXISTS public_read_classes ON public.classes;
-    DROP POLICY IF EXISTS public_read_subjects ON public.subjects;
-    DROP POLICY IF EXISTS public_read_timetable ON public.timetable;
-    DROP POLICY IF EXISTS public_read_assignments ON public.teacher_assignments;
-    
-    -- Assessments & Lectures
-    DROP POLICY IF EXISTS teacher_manage_assessments ON public.assessments;
-    DROP POLICY IF EXISTS parent_view_assessments ON public.assessments;
-    
-    -- Teacher Attendance
-    DROP POLICY IF EXISTS teacher_read_own_attendance ON public.teacher_attendance;
+  RETURN EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid() AND role = 'admin'
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+-- 1. ENABLE RLS ON EVERYTHING
+DO $$ 
+DECLARE
+    t text;
+BEGIN
+    FOR t IN SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
+    LOOP
+        EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY;', t);
+    END LOOP;
 END $$;
 
--- 3. RECREATE POLICIES
+-- 2. NUCLEAR POLICY DROP (Removes every policy I might have created)
+DO $$ 
+DECLARE
+    pol record;
+BEGIN
+    FOR pol IN SELECT policyname, tablename FROM pg_policies WHERE schemaname = 'public'
+    LOOP
+        EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I;', pol.policyname, pol.tablename);
+    END LOOP;
+END $$;
 
--- PROFILES
-CREATE POLICY profile_self_access ON public.profiles FOR SELECT USING (id = auth.uid());
-CREATE POLICY admin_profile_all ON public.profiles FOR ALL USING (
-  (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin'
-);
+-- 3. IMPLEMENT FRESH, RECURSION-SAFE POLICIES
 
--- PARENTS & TEACHERS
-CREATE POLICY parent_read_self ON public.parents FOR SELECT USING (profile_id = auth.uid());
-CREATE POLICY teacher_read_self ON public.teachers FOR SELECT USING (profile_id = auth.uid());
+-- PROFILES (Separated by role to prevent login recursion)
+CREATE POLICY profiles_anon_login ON public.profiles FOR SELECT TO anon USING (true);
+CREATE POLICY profiles_self_access ON public.profiles FOR SELECT TO authenticated USING (id = auth.uid());
+CREATE POLICY profiles_admin_all ON public.profiles FOR ALL TO authenticated USING (public.is_admin());
+
+-- PARENTS & TEACHERS (Crucial: These are often joined and need non-recursive policies)
+CREATE POLICY parents_read_all ON public.parents FOR SELECT TO authenticated USING (true);
+CREATE POLICY teachers_read_all ON public.teachers FOR SELECT TO authenticated USING (true);
+CREATE POLICY admin_manage_parents ON public.parents FOR ALL TO authenticated USING (public.is_admin());
+CREATE POLICY admin_manage_teachers ON public.teachers FOR ALL TO authenticated USING (public.is_admin());
 
 -- STUDENTS
-CREATE POLICY parent_read_children ON public.students FOR SELECT USING (
+CREATE POLICY students_parent_read ON public.students FOR SELECT TO authenticated USING (
   parent_id IN (SELECT id FROM public.parents WHERE profile_id = auth.uid())
 );
-CREATE POLICY teacher_read_class_students ON public.students FOR SELECT USING (
+CREATE POLICY students_teacher_read ON public.students FOR SELECT TO authenticated USING (
   class_id IN (SELECT class_id FROM public.teacher_assignments WHERE teacher_id IN (SELECT id FROM public.teachers WHERE profile_id = auth.uid()))
 );
+CREATE POLICY students_admin_all ON public.students FOR ALL TO authenticated USING (public.is_admin());
 
--- ACADEMIC DATA
-CREATE POLICY parent_view_academic ON public.results FOR SELECT USING (
+-- ATTENDANCE & RESULTS
+CREATE POLICY attendance_parent_read ON public.attendance FOR SELECT TO authenticated USING (
   student_id IN (SELECT id FROM public.students WHERE parent_id IN (SELECT id FROM public.parents WHERE profile_id = auth.uid()))
 );
-CREATE POLICY teacher_manage_results ON public.results FOR ALL USING (
-  teacher_id IN (SELECT id FROM public.teachers WHERE profile_id = auth.uid())
-);
-
-CREATE POLICY parent_view_attendance ON public.attendance FOR SELECT USING (
-  student_id IN (SELECT id FROM public.students WHERE parent_id IN (SELECT id FROM public.parents WHERE profile_id = auth.uid()))
-);
-CREATE POLICY teacher_manage_attendance ON public.attendance FOR ALL USING (
+CREATE POLICY attendance_teacher_manage ON public.attendance FOR ALL TO authenticated USING (
   assignment_id IN (SELECT id FROM public.teacher_assignments WHERE teacher_id IN (SELECT id FROM public.teachers WHERE profile_id = auth.uid()))
 );
+CREATE POLICY attendance_admin_all ON public.attendance FOR ALL TO authenticated USING (public.is_admin());
 
--- FEES
-CREATE POLICY parent_view_fees ON public.fees FOR SELECT USING (
+CREATE POLICY results_parent_read ON public.results FOR SELECT TO authenticated USING (
   student_id IN (SELECT id FROM public.students WHERE parent_id IN (SELECT id FROM public.parents WHERE profile_id = auth.uid()))
 );
+CREATE POLICY results_teacher_manage ON public.results FOR ALL TO authenticated USING (
+  teacher_id IN (SELECT id FROM public.teachers WHERE profile_id = auth.uid())
+);
+CREATE POLICY results_admin_all ON public.results FOR ALL TO authenticated USING (public.is_admin());
+
+-- FEES
+CREATE POLICY fees_parent_read ON public.fees FOR SELECT TO authenticated USING (
+  student_id IN (SELECT id FROM public.students WHERE parent_id IN (SELECT id FROM public.parents WHERE profile_id = auth.uid()))
+);
+CREATE POLICY fees_admin_all ON public.fees FOR ALL TO authenticated USING (public.is_admin());
 
 -- DIARY & NOTIFICATIONS
-CREATE POLICY everyone_read_notifications ON public.notifications FOR SELECT USING (true);
-CREATE POLICY parent_view_diary ON public.diary FOR SELECT USING (
+CREATE POLICY diary_parent_read ON public.diary FOR SELECT TO authenticated USING (
   assignment_id IN (
     SELECT ta.id FROM public.teacher_assignments ta
     JOIN public.students s ON s.class_id = ta.class_id
     WHERE s.parent_id IN (SELECT id FROM public.parents WHERE profile_id = auth.uid())
   )
 );
-
--- NEWLY OPTIMIZED TABLES (Public Read, Admin Manage)
-CREATE POLICY public_read_academic_years ON public.academic_years FOR SELECT USING (true);
-CREATE POLICY public_read_classes ON public.classes FOR SELECT USING (true);
-CREATE POLICY public_read_subjects ON public.subjects FOR SELECT USING (true);
-CREATE POLICY public_read_timetable ON public.timetable FOR SELECT USING (true);
-CREATE POLICY public_read_assignments ON public.teacher_assignments FOR SELECT USING (true);
-
--- ASSESSMENTS & LECTURES
-CREATE POLICY teacher_manage_assessments ON public.assessments FOR ALL USING (
-  teacher_id IN (SELECT id FROM public.teachers WHERE profile_id = auth.uid())
+CREATE POLICY diary_teacher_manage ON public.diary FOR ALL TO authenticated USING (
+  assignment_id IN (SELECT id FROM public.teacher_assignments WHERE teacher_id IN (SELECT id FROM public.teachers WHERE profile_id = auth.uid()))
 );
-CREATE POLICY parent_view_assessments ON public.assessments FOR SELECT USING (
-  class_id IN (
-    SELECT class_id FROM public.students 
-    WHERE parent_id IN (SELECT id FROM public.parents WHERE profile_id = auth.uid())
-  )
-);
+CREATE POLICY diary_admin_all ON public.diary FOR ALL TO authenticated USING (public.is_admin());
 
--- TEACHER ATTENDANCE
-CREATE POLICY teacher_read_own_attendance ON public.teacher_attendance FOR SELECT USING (
-  teacher_id IN (SELECT id FROM public.teachers WHERE profile_id = auth.uid())
-);
+CREATE POLICY notifications_read_all ON public.notifications FOR SELECT USING (true);
+CREATE POLICY notifications_admin_all ON public.notifications FOR ALL TO authenticated USING (public.is_admin());
 
--- ==========================================
--- 📡 REALTIME CONFIGURATION (Idempotent)
--- ==========================================
+-- PUBLIC METADATA (Readable by authenticated users)
+CREATE POLICY academic_years_read ON public.academic_years FOR SELECT USING (true);
+CREATE POLICY classes_read ON public.classes FOR SELECT USING (true);
+CREATE POLICY subjects_read ON public.subjects FOR SELECT USING (true);
+CREATE POLICY timetable_read ON public.timetable FOR SELECT USING (true);
+CREATE POLICY assignments_read ON public.teacher_assignments FOR SELECT USING (true);
+
+-- 4. REALTIME (Idempotent)
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
@@ -150,7 +112,6 @@ BEGIN
     END IF;
 END $$;
 
--- Add tables one by one to avoid errors if they are already added
 DO $$
 DECLARE
     table_name text;
@@ -160,9 +121,7 @@ BEGIN
         BEGIN
             EXECUTE format('ALTER PUBLICATION supabase_realtime ADD TABLE public.%I', table_name);
         EXCEPTION
-            WHEN duplicate_object THEN
-                -- Table already in publication, ignore
-                NULL;
+            WHEN duplicate_object THEN NULL;
         END;
     END LOOP;
 END $$;

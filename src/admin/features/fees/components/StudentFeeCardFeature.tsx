@@ -3,7 +3,6 @@ import { useParams, Link } from 'react-router-dom';
 import { 
   ArrowLeft, 
   Printer, 
-  Download, 
   Clock, 
   CreditCard, 
   AlertCircle,

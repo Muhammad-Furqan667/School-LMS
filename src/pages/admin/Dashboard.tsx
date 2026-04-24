@@ -7,7 +7,6 @@ import {
   TrendingUp, 
   BookOpen, 
   Activity, 
-  Clock,
   GraduationCap,
   ArrowUpRight,
   TrendingDown
@@ -192,7 +191,7 @@ const AdminDashboard: React.FC = () => {
                   />
                   <Tooltip cursor={{fill: '#f8fafc', radius: 24}} contentStyle={{ borderRadius: '24px', border: 'none', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.15)' }} />
                   <Bar dataKey="value" radius={[16, 16, 4, 4]} barSize={48}>
-                    {(stats?.gradeDistribution || []).map((entry: any, index: number) => (
+                    {(stats?.gradeDistribution || []).map((_, index: number) => (
                         <Cell key={`cell-${index}`} fill={index % 2 === 0 ? '#6366f1' : '#818cf8'} />
                     ))}
                   </Bar>

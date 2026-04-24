@@ -1,6 +1,5 @@
 import React from 'react';
 import { Users, Edit3, Trash2, ChevronRight } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import type { Student } from '../types/student.types';
 
 interface StudentTableProps {
@@ -34,7 +33,7 @@ export const StudentTable: React.FC<StudentTableProps> = ({
       const cls = student.classes;
       const grade = cls?.grade || 'Unassigned';
       const section = cls?.section || '';
-      const year = cls?.academic_years?.year_label || 'Unknown Session';
+      const year = (cls as any)?.academic_years?.year_label || 'Unknown Session';
       
       const key = `${grade}-${section}-${year}`;
       if (!groups[key]) {

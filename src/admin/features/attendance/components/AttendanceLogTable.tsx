@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, CheckCircle2, XCircle, Clock, Save, History } from 'lucide-react';
+import { Calendar, Clock, Save, History } from 'lucide-react';
 import { SchoolService } from '../../../../services/schoolService';
 import { toast } from 'sonner';
 

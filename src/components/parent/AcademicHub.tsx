@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
-import { Target, Trophy, TrendingUp, FileText } from 'lucide-react';
+import React from 'react';
+import { Target, Trophy, TrendingUp, FileText, AlertCircle } from 'lucide-react';
 
 interface AcademicHubProps {
   results: any[];
   activeChild: any;
+  attendanceStats?: any;
+  attendanceHistory?: any[];
+  timetable?: any[];
 }
 
 export const AcademicHub: React.FC<AcademicHubProps> = ({ 

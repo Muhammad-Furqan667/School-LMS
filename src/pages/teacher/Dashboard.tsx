@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import { SchoolService } from '../../services/schoolService';
 // Supabase import removed
 import { useSchoolEvents } from '../../hooks/useSchoolEvents';
@@ -20,7 +20,6 @@ const TeacherDashboard: React.FC = () => {
   const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
   const [diaryContent, setDiaryContent] = useState('');
   const [history, setHistory] = useState<any[]>([]);
-  const [timetable, setTimetable] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
   const [results, setResults] = useState<any[]>([]);
   const [selectedClassData, setSelectedClassData] = useState<any>(null);
@@ -198,7 +197,6 @@ const TeacherDashboard: React.FC = () => {
             setDiaryContent={setDiaryContent}
             handleCreateDiary={handleCreateDiary}
             teacherStats={teacherStats}
-            timetable={timetable}
             teacherTimetable={teacherTimetable}
             students={students}
             results={results}
@@ -267,7 +265,6 @@ const TeacherDashboard: React.FC = () => {
             setDiaryContent={setDiaryContent}
             handleCreateDiary={handleCreateDiary}
             teacherStats={teacherStats}
-            timetable={timetable}
             teacherTimetable={teacherTimetable}
             students={students}
             results={results}

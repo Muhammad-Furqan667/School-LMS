@@ -9,8 +9,7 @@ import {
   Users,
   Trophy,
   Target,
-  TrendingUp,
-  Award
+  TrendingUp
 } from 'lucide-react';
 
 interface TeacherOverviewProps {
@@ -21,7 +20,6 @@ interface TeacherOverviewProps {
   setDiaryContent: (val: string) => void;
   handleCreateDiary: (e: React.FormEvent) => void;
   teacherStats: any;
-  timetable: any[];
   teacherTimetable: any[];
   students: any[];
   results: any[];
@@ -40,7 +38,6 @@ export const TeacherOverview: React.FC<TeacherOverviewProps> = ({
   setDiaryContent,
   handleCreateDiary,
   teacherStats,
-  timetable = [],
   teacherTimetable = [],
   students = [],
   results = [],
