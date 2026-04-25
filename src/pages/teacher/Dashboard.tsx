@@ -21,7 +21,7 @@ const TeacherDashboard: React.FC = () => {
   const [diaryContent, setDiaryContent] = useState('');
   const [history, setHistory] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
-  const [results, setResults] = useState<any[]>([]);
+  const [results] = useState<any[]>([]);
   const [selectedClassData, setSelectedClassData] = useState<any>(null);
   const [isMarksModalOpen, setIsMarksModalOpen] = useState(false);
   const [activeStudentForMarks, setActiveStudentForMarks] = useState<any>(null);
@@ -81,7 +81,23 @@ const TeacherDashboard: React.FC = () => {
 
       if (mergedAssignments.length > 0) {
         const modAsgn = mergedAssignments.find(a => a.isModeratorAssignment);
-        const initialAsgn = (location.pathname.includes('/attendance') && modAsgn) ? modAsgn : mergedAssignments[0];
+        
+        // If on attendance route, we MUST use a moderator assignment
+        const isAttendanceRoute = location.pathname.includes('/attendance');
+        let initialAsgn;
+        
+        if (isAttendanceRoute) {
+          if (!modAsgn) {
+            toast.error('Access Denied: Only Section Moderators can access the attendance sheet.');
+            // Fallback or redirect could go here, but for now we just block data
+            initialAsgn = mergedAssignments[0];
+          } else {
+            initialAsgn = modAsgn;
+          }
+        } else {
+          initialAsgn = mergedAssignments[0];
+        }
+
         setSelectedAssignment(initialAsgn.id);
         fetchAssignmentDetails(initialAsgn);
       }
@@ -219,6 +235,7 @@ const TeacherDashboard: React.FC = () => {
           <AttendanceBox 
             students={students} 
             isClassTeacher={selectedClassData?.class_teacher_id === teacherData?.id}
+            isAdmin={profileData?.role === 'admin'}
             existingAttendance={todaysAttendance}
             selectedDate={attendanceDate}
             onDateChange={setAttendanceDate}

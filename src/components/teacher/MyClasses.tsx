@@ -49,10 +49,13 @@ export const MyClasses: React.FC<MyClassesProps> = ({ teacher, assignments }) =>
     setSelectedClass(asgn);
     setSelectedAssessment(null);
     try {
+      // For moderated classes, the ID starts with MOD-. We should use the actual assignment_id for diary.
+      const diaryAssignmentId = asgn.isModeratorAssignment ? asgn.assignment_id : asgn.id;
+
       const [assessData, studentData, historyData] = await Promise.all([
         SchoolService.getAssessments(teacher.id, asgn.class_id, asgn.subject_id),
         SchoolService.getStudents(asgn.class_id),
-        SchoolService.getDiaryEntries(asgn.id)
+        diaryAssignmentId ? SchoolService.getDiaryEntries(diaryAssignmentId) : Promise.resolve([])
       ]);
       setAssessments(assessData);
       setClassStudents(studentData);

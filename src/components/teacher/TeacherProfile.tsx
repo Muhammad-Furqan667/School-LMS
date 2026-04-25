@@ -13,8 +13,12 @@ export const TeacherProfile: React.FC<TeacherProfileProps> = ({ teacher, profile
          <div className="h-48 w-full bg-gradient-to-r from-indigo-600 to-violet-600 rounded-[2.5rem] shadow-lg" />
          <div className="absolute -bottom-12 left-12 flex items-end gap-6">
             <div className="h-32 w-32 bg-white rounded-[2rem] p-2 shadow-2xl border border-slate-100">
-               <div className="h-full w-full bg-slate-50 rounded-[1.5rem] flex items-center justify-center">
-                  <User className="h-16 w-16 text-indigo-200" />
+               <div className="h-full w-full bg-slate-50 rounded-[1.5rem] flex items-center justify-center overflow-hidden">
+                  {teacher?.profile_picture_url ? (
+                    <img src={teacher.profile_picture_url} alt={teacher.full_name} className="h-full w-full object-cover" />
+                  ) : (
+                    <User className="h-16 w-16 text-indigo-200" />
+                  )}
                </div>
             </div>
             <div className="pb-4">

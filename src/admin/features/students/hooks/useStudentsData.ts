@@ -14,7 +14,7 @@ export const useStudentsData = () => {
     setLoading(true);
     try {
       const [studentData, classData] = await Promise.all([
-        SchoolService.getStudents(),
+        SchoolService.getStudents(undefined, undefined, true),
         SchoolService.getClasses()
       ]);
       setStudents(studentData || []);

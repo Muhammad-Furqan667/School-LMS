@@ -111,13 +111,15 @@ export class SchoolService {
    * @param {string} [parentId] - Optional parent ID to filter by.
    * @returns {Promise<Tables<'students'>[]>} Array of students.
    */
-  static async getStudents(classId?: string, parentId?: string) {
+  static async getStudents(classId?: string, parentId?: string, includeInactive: boolean = false) {
     let query = supabase.from('students').select('*, parents(*, profiles(username)), classes(*, academic_years(*)), fees(status)');
     if (classId) query = query.eq('class_id', classId);
     if (parentId) query = query.eq('parent_id', parentId);
     
-    // Only show active students by default
-    query = query.eq('status', 'Active');
+    // Only show active students by default, unless explicitly requested
+    if (!includeInactive) {
+      query = query.eq('status', 'Active');
+    }
     
     const { data, error } = await query.order('created_at', { ascending: false });
     if (error) {
@@ -125,7 +127,9 @@ export class SchoolService {
       let fallbackQuery = supabase.from('students').select('*');
       if (classId) fallbackQuery = fallbackQuery.eq('class_id', classId);
       if (parentId) fallbackQuery = fallbackQuery.eq('parent_id', parentId);
-      fallbackQuery = fallbackQuery.eq('status', 'Active');
+      if (!includeInactive) {
+        fallbackQuery = fallbackQuery.eq('status', 'Active');
+      }
       
       const { data: fallback, error: fbError } = await fallbackQuery;
       if (fbError) throw fbError;
@@ -190,6 +194,8 @@ export class SchoolService {
    */
   static async getDiaryEntries(assignmentId: string) {
     try {
+      if (!assignmentId) return [];
+
       const { data, error } = await supabase
         .from('diary')
         .select('*')
@@ -395,13 +401,17 @@ export class SchoolService {
   /**
    * Fetches all students enrolled in a specific class.
    */
-  static async getStudentsByClass(classId: string) {
-    const { data, error } = await supabase
+  static async getStudentsByClass(classId: string, includeInactive: boolean = false) {
+    let query = supabase
       .from('students')
       .select('*, parents(*, profiles(username))')
-      .eq('class_id', classId)
-      .eq('status', 'Active')
-      .order('name');
+      .eq('class_id', classId);
+    
+    if (!includeInactive) {
+      query = query.eq('status', 'Active');
+    }
+
+    const { data, error } = await query.order('name');
     
     if (error) throw error;
     return data;
@@ -1744,7 +1754,8 @@ export class SchoolService {
           id, 
           name, 
           roll_no, 
-          class_id, 
+          class_id,
+          status,
           classes(grade, section)
         )
       `)

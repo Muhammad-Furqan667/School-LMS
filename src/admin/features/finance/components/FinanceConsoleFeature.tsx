@@ -2,16 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { 
   CreditCard, 
   Plus, 
-  Printer, 
   FileText, 
-  AlertCircle, 
   CheckCircle2, 
   ChevronRight,
-  Download,
   Trash2,
   RefreshCw,
   Search,
-  Filter,
   ArrowLeft
 } from 'lucide-react';
 import { SchoolService } from '../../../../services/schoolService';
@@ -78,20 +74,23 @@ export const FinanceConsoleFeature: React.FC = () => {
       ? fees.filter(f => f.student?.class_id === filterClass)
       : fees;
 
-    const totalExpected = filteredFees.reduce((acc, f) => acc + (f.amount_due || 0), 0);
-    const totalCollected = filteredFees.reduce((acc, f) => acc + (f.amount_paid || 0), 0);
+    // Recovery metrics should exclude non-active students from the "remaining" debt
+    const activeFees = filteredFees.filter(f => f.student?.status === 'Active');
     
-    const monthlyFees = filteredFees.filter(f => f.month === currentMonth);
-    const monthlyExpected = monthlyFees.reduce((acc, f) => acc + (f.amount_due || 0), 0);
-    const monthlyCollected = monthlyFees.reduce((acc, f) => acc + (f.amount_paid || 0), 0);
+    const activeTotalExpected = activeFees.reduce((acc, f) => acc + (f.amount_due || 0), 0);
+    const activeTotalCollected = activeFees.reduce((acc, f) => acc + (f.amount_paid || 0), 0);
+
+    const activeMonthlyFees = activeFees.filter(f => f.month === currentMonth);
+    const activeMonthlyExpected = activeMonthlyFees.reduce((acc, f) => acc + (f.amount_due || 0), 0);
+    const activeMonthlyCollected = activeMonthlyFees.reduce((acc, f) => acc + (f.amount_paid || 0), 0);
 
     setStats({
-      totalExpected,
-      totalCollected,
-      totalRemaining: totalExpected - totalCollected,
-      monthlyExpected,
-      monthlyCollected,
-      monthlyRemaining: monthlyExpected - monthlyCollected
+      totalExpected: activeTotalExpected,
+      totalCollected: activeTotalCollected,
+      totalRemaining: activeTotalExpected - activeTotalCollected,
+      monthlyExpected: activeMonthlyExpected,
+      monthlyCollected: activeMonthlyCollected,
+      monthlyRemaining: activeMonthlyExpected - activeMonthlyCollected
     });
   };
 
@@ -107,7 +106,7 @@ export const FinanceConsoleFeature: React.FC = () => {
   const fetchStudents = async () => {
     try {
       setLoading(true);
-      const data = await SchoolService.getStudents(filterClass || undefined);
+      const data = await SchoolService.getStudents(filterClass || undefined, undefined, true);
       setStudents(data);
     } catch (error) {
       toast.error('Failed to load students');
@@ -162,7 +161,8 @@ export const FinanceConsoleFeature: React.FC = () => {
 
   const handleBulkIssue = async () => {
     if (!targetClass) return toast.error('Select a class');
-    if (feeItems.some(i => !i.category || i.amount <= 0)) return toast.error('Valid category and amount required');
+    if (feeItems.some(i => !i.category)) return toast.error('Valid category required');
+    if (feeItems.some(i => i.amount === 0)) return toast.error('Fee amount cannot be zero. Use negative for waivers.');
 
     try {
       setIssuing(true);
@@ -176,7 +176,7 @@ export const FinanceConsoleFeature: React.FC = () => {
 
       if (!currentYear) return toast.error('No active session found.');
 
-      const targetStudents = await SchoolService.getStudents(targetClass);
+      const targetStudents = await SchoolService.getStudents(targetClass, undefined, true);
       if (targetStudents.length === 0) return toast.error('No students found in this class');
 
       const totalDue = feeItems.reduce((acc, i) => acc + Number(i.amount), 0);
@@ -446,7 +446,17 @@ export const FinanceConsoleFeature: React.FC = () => {
                             onClick={() => handleStudentClick(s)}
                             className="hover:bg-indigo-50/30 transition-colors cursor-pointer group"
                           >
-                            <td className="px-10 py-6 font-black text-slate-900 group-hover:text-indigo-600 transition-colors">{s.name}</td>
+                            <td className="px-10 py-6">
+                              <div className="flex flex-col">
+                                <span className="font-black text-slate-900 group-hover:text-indigo-600 transition-colors">{s.name}</span>
+                                <span className={`text-[8px] font-black uppercase tracking-widest mt-1 ${
+                                  s.status === 'Suspended' ? 'text-amber-500' : 
+                                  s.status === 'Expelled' ? 'text-slate-900' : 'text-indigo-400'
+                                }`}>
+                                  {s.status || 'Active'}
+                                </span>
+                              </div>
+                            </td>
                             <td className="px-6 py-6 text-xs font-bold text-slate-500">{s.roll_no}</td>
                             <td className="px-6 py-6 text-xs font-black text-slate-400 uppercase">Grade {s.classes?.grade}</td>
                             <td className="px-6 py-6">

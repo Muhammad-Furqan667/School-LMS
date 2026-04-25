@@ -34,11 +34,11 @@ export const useAssignmentsData = () => {
     try {
       const { error } = await supabase
         .from('teacher_assignments')
-        .insert({
+        .upsert({
           class_id: classId,
           subject_id: subjectId,
           teacher_id: teacherId
-        });
+        }, { onConflict: 'class_id,subject_id' });
 
       if (error) throw error;
       toast.success('Subject assigned successfully');

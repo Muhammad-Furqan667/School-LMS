@@ -107,12 +107,19 @@ export const StudentTable: React.FC<StudentTableProps> = ({
         </div>
       </td>
       <td className="px-6 py-5">
-        <div className="flex flex-col items-center">
-          <div className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border ${student.is_locked
+        <div className="flex flex-col items-center gap-2">
+          <div className={`px-4 py-1 rounded-xl text-[9px] font-black uppercase tracking-widest border ${student.is_locked
               ? 'bg-red-50 text-red-600 border-red-100'
               : 'bg-emerald-50 text-emerald-600 border-emerald-100'
             }`}>
             {student.is_locked ? 'Fees Pending' : 'Verified'}
+          </div>
+          <div className={`px-4 py-1 rounded-xl text-[9px] font-black uppercase tracking-widest border ${
+              student.status === 'Suspended' ? 'bg-amber-50 text-amber-600 border-amber-100' :
+              student.status === 'Expelled' ? 'bg-slate-900 text-white border-slate-900' :
+              'bg-indigo-50 text-indigo-600 border-indigo-100'
+            }`}>
+            {student.status || 'Active'}
           </div>
         </div>
       </td>

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { UserCheck, UserX, Clock, Save, Search } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface AttendanceBoxProps {
   students: any[];
@@ -8,6 +9,7 @@ interface AttendanceBoxProps {
   selectedDate: string;
   onDateChange: (date: string) => void;
   onSave?: (attendance: any, time: string) => void;
+  isAdmin?: boolean;
 }
 
 export const AttendanceBox: React.FC<AttendanceBoxProps> = ({ 
@@ -16,7 +18,8 @@ export const AttendanceBox: React.FC<AttendanceBoxProps> = ({
   existingAttendance = [], 
   selectedDate,
   onDateChange,
-  onSave 
+  onSave,
+  isAdmin
 }) => {
   const isAlreadyMarked = existingAttendance && existingAttendance.length > 0;
   const isToday = selectedDate === new Date().toISOString().split('T')[0];
@@ -44,13 +47,13 @@ export const AttendanceBox: React.FC<AttendanceBoxProps> = ({
     }
     
     const now = new Date().getTime();
-    const diffHours = (now - createdTime) / (1000 * 60 * 60);
+    const diffMinutes = (now - createdTime) / (1000 * 60);
     
-    return diffHours > 5;
+    return diffMinutes > 5;
   }, [existingAttendance, isAlreadyMarked]);
 
-  // Allow editing if it's today (within 5h lock) OR if it's a historical record (to allow fixing old info)
-  const canEdit = isClassTeacher && (!isToday || !isLockedByTime);
+  // Allow editing if user is Admin OR Section Moderator (within 5 min lock today OR historical fixing)
+  const canEdit = isAdmin || (isClassTeacher && (!isToday || !isLockedByTime));
 
   const currentHour = new Date().getHours();
   const displayHour = String(currentHour).padStart(2, '0');
@@ -162,14 +165,14 @@ export const AttendanceBox: React.FC<AttendanceBoxProps> = ({
            </div>
            <button 
              onClick={() => {
-               const unMarked = students.filter(s => !attendanceData[s.id]);
-               if (unMarked.length > 0) {
-                 const names = unMarked.slice(0, 2).map(s => s.name).join(', ');
-                 const more = unMarked.length > 2 ? ` and ${unMarked.length - 2} others` : '';
-                 alert(`Incomplete Sheet: Please mark attendance for ${names}${more}. Every student must have a status.`);
-                 return;
-               }
-               onSave?.(attendanceData, markingTime);
+                const unMarked = students.filter(s => !attendanceData[s.id]);
+                if (unMarked.length > 0) {
+                  const names = unMarked.slice(0, 2).map(s => s.name).join(', ');
+                  const more = unMarked.length > 2 ? ` and ${unMarked.length - 2} others` : '';
+                  toast.error(`Incomplete Sheet: Every student must be marked (Present, Absent, or Late). Missing: ${names}${more}.`);
+                  return;
+                }
+                onSave?.(attendanceData, markingTime);
              }}
              disabled={!canEdit}
              className={`flex items-center gap-2 px-6 py-2 font-bold rounded-xl transition-all shadow-lg ${

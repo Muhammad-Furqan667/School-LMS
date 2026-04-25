@@ -30,7 +30,7 @@ export const SectionStudentList: React.FC<SectionStudentListProps> = ({
     const fetchStudents = async () => {
       try {
         setLoading(true);
-        const data = await SchoolService.getStudents(selectedClass.id);
+        const data = await SchoolService.getStudents(selectedClass.id, undefined, true);
         setStudents(data || []);
       } catch (error) {
         console.error('Failed to fetch students:', error);
