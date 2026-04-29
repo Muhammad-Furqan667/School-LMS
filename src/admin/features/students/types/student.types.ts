@@ -1,3 +1,13 @@
+export interface AcademicYear {
+  id: string;
+  year_label: string;
+  is_current: boolean;
+  start_date?: string;
+  end_date?: string;
+  status?: string;
+  created_at?: string;
+}
+
 export interface Student {
   id: string;
   name: string;
@@ -7,6 +17,7 @@ export interface Student {
   cnic?: string;
   parent_cnic?: string;
   is_locked?: boolean;
+  status?: string;
   classes?: {
     grade: string;
     section: string;
@@ -14,6 +25,9 @@ export interface Student {
   };
   parents?: {
     profile_id?: string;
+    profiles?: {
+      username: string;
+    };
   };
   fees?: any[];
   [key: string]: any;
@@ -24,6 +38,7 @@ export interface Class {
   grade: string;
   section: string;
   academic_year_id?: string;
+  class_teacher_id?: string;
   [key: string]: any;
 }
 
@@ -51,6 +66,7 @@ export interface FeeFormState {
 }
 
 export interface AcademicSession {
+  id?: string;
   label: string;
   results: any[];
   totalMarks: number;

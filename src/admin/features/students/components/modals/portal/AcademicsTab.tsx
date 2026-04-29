@@ -5,6 +5,7 @@ import type { Student, AcademicResults } from '../../../types/student.types';
 interface AcademicsTabProps {
   selectedStudent: Student;
   academicResults: AcademicResults;
+  handleUpdateResult: (result: any, status: 'pass' | 'fail' | 'pending', student: Student) => Promise<void>;
 }
 
 export const AcademicsTab: React.FC<AcademicsTabProps> = ({

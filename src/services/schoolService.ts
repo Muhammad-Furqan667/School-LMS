@@ -140,7 +140,7 @@ export class SchoolService {
 
     // Deduplicate if a student matches both current and history (unlikely with .or but good for safety)
     const seen = new Set();
-    return (data || []).filter((s: any) => {
+    return (data || []).filter((s: { id: string }) => {
       if (seen.has(s.id)) return false;
       seen.add(s.id);
       return true;
@@ -318,9 +318,9 @@ export class SchoolService {
     if (error) throw error;
     
     const stats = {
-      present: (attendanceData || []).filter((a: any) => a.status === 'present').length,
-      absent: (attendanceData || []).filter((a: any) => a.status === 'absent').length,
-      late: (attendanceData || []).filter((a: any) => a.status === 'late').length,
+      present: (attendanceData || []).filter((a: { status: string }) => a.status === 'present').length,
+      absent: (attendanceData || []).filter((a: { status: string }) => a.status === 'absent').length,
+      late: (attendanceData || []).filter((a: { status: string }) => a.status === 'late').length,
       total: attendanceData.length,
       percentage: '0.00'
     };
@@ -382,7 +382,7 @@ export class SchoolService {
     
     // Deduplicate and Return all moderated classes
     const seen = new Set();
-    return (data || []).filter((cls: any) => {
+    return (data || []).filter((cls: { id: string }) => {
       if (seen.has(cls.id)) return false;
       seen.add(cls.id);
       return true;
@@ -461,7 +461,7 @@ export class SchoolService {
 
     // Deduplicate assignments (since one student matching "Active" is enough to include the class)
     const seen = new Set();
-    return (data || []).filter((asgn: any) => {
+    return (data || []).filter((asgn: { id: string }) => {
       if (seen.has(asgn.id)) return false;
       seen.add(asgn.id);
       return true;
@@ -741,8 +741,8 @@ export class SchoolService {
       .from('teachers')
       .select('id, full_name, profile_id');
 
-    const missingStudents = (students || []).filter((s: any) => !s.parents?.profile_id);
-    const missingTeachers = (teachers || []).filter((t: any) => !t.profile_id);
+    const missingStudents = (students || []).filter((s: { parents?: { profile_id?: string } }) => !s.parents?.profile_id);
+    const missingTeachers = (teachers || []).filter((t: { profile_id?: string }) => !t.profile_id);
 
     return {
       students: missingStudents,

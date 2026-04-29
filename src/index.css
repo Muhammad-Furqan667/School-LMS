@@ -89,7 +89,7 @@
   }
 
   /* Force all parents of printable-area to be visible and non-clipping */
-  .printable-area:parents {
+  div:has(.printable-area) {
      overflow: visible !important;
      display: block !important;
   }

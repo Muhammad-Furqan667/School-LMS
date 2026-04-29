@@ -15,7 +15,7 @@ export const CourseModal: React.FC<CourseModalProps> = ({ isOpen, onClose, onSuc
   
   const [formData, setFormData] = useState({
     name: '',
-    grade_level: 5,
+    grade_level: '5',
     teacher_id: '',
     pricing_type: 'free',
     price: 0,
@@ -96,10 +96,10 @@ export const CourseModal: React.FC<CourseModalProps> = ({ isOpen, onClose, onSuc
             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Grade Level</label>
             <select
               value={formData.grade_level}
-              onChange={(e) => setFormData({ ...formData, grade_level: parseInt(e.target.value) })}
+              onChange={(e) => setFormData({ ...formData, grade_level: e.target.value })}
               className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none"
             >
-              {[1,2,3,4,5,6,7,8,9,10].map(g => (
+              {['1','2','3','4','5','6','7','8','9','10'].map(g => (
                 <option key={g} value={g}>Grade {g}</option>
               ))}
             </select>
