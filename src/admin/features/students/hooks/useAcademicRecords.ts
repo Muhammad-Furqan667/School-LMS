@@ -19,17 +19,6 @@ export const useAcademicRecords = () => {
 
       const requiredSubjects = await SchoolService.getSubjectsByGrade(selectedStudent.classes?.grade);
 
-      const currentYearResults = requiredSubjects.map((sub: any) => {
-        const existing = (resultsData || []).find((r: any) => r.subject_id === sub.id && r.academic_year_id === selectedStudent.classes?.academic_year_id);
-        return existing || {
-          subject_id: sub.id,
-          student_id: selectedStudent.id,
-          status: 'pending',
-          subjects: sub,
-          is_current: true
-        };
-      });
-
       const currentAssessmentResults = (resultsData || []).filter((r: any) => 
         r.academic_year_id === selectedStudent.classes?.academic_year_id && r.assessment_id
       );

@@ -1,27 +1,46 @@
 import React from 'react';
-import { Calendar, Clock, BookOpen, User } from 'lucide-react';
+import { Calendar, Clock, User } from 'lucide-react';
 
 interface StudentTimetableProps {
   timetable: any[];
 }
 
 export const StudentTimetable: React.FC<StudentTimetableProps> = ({ timetable = [] }) => {
-  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  
-  // Group timetable by day
-  const groupedTimetable = timetable.reduce((acc: any, slot) => {
-    if (!acc[slot.day_of_week]) acc[slot.day_of_week] = [];
-    acc[slot.day_of_week].push(slot);
-    return acc;
-  }, {});
+  const defaultDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+  const hasSaturdayData = timetable.some(s => s.day_of_week === 'Saturday');
+  const days = hasSaturdayData ? [...defaultDays, 'Saturday'] : defaultDays;
 
-  // Sort slots by start time
-  Object.keys(groupedTimetable).forEach(day => {
-    groupedTimetable[day].sort((a: any, b: any) => a.start_time.localeCompare(b.start_time));
-  });
+  const formatTime = (time: string) => {
+    if (!time) return '';
+    const [h, m] = time.split(':');
+    const hour = parseInt(h);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const displayHour = hour % 12 || 12;
+    return `${displayHour.toString().padStart(2, '0')}:${m} ${ampm}`;
+  };
+
+  // Build time slots starting from 7 AM, default ending at 4 PM (16:00), extending to 6 PM (18:00) if needed
+  const timeSlots = (() => {
+    const dataHours = timetable
+      .map(t => t?.start_time ? parseInt(t.start_time.split(':')[0]) : null)
+      .filter((h): h is number => h !== null);
+    
+    const startHour = 7;
+    const defaultEndHour = 16; // 4 PM
+    const maxHourInData = dataHours.length > 0 ? Math.max(...dataHours) : 0;
+    
+    // Extend up to 6 PM (18) if data exists beyond 4 PM (16)
+    const endHour = Math.min(Math.max(defaultEndHour, maxHourInData), 18);
+    
+    const slots = [];
+    for (let h = startHour; h <= endHour; h++) {
+       slots.push(`${h.toString().padStart(2, '0')}:00:00`);
+    }
+    return slots;
+  })();
 
   return (
-    <div className="space-y-8 printable-area">
+    <div className="space-y-8 animate-in fade-in duration-500 printable-area">
       <div className="flex items-center justify-between px-2">
         <div>
           <h3 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Weekly Academic Schedule</h3>
@@ -40,50 +59,71 @@ export const StudentTimetable: React.FC<StudentTimetableProps> = ({ timetable = 
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {days.map((day) => (
-          <div key={day} className="bg-white rounded-[2.5rem] border border-slate-200 p-8 shadow-sm hover:shadow-xl transition-all group">
-            <div className="flex items-center justify-between mb-6">
-               <h4 className="text-lg font-black text-slate-900">{day}</h4>
-               <div className="px-3 py-1 bg-slate-50 text-slate-400 rounded-lg text-[10px] font-black uppercase tracking-widest border border-slate-100">
-                  {groupedTimetable[day]?.length || 0} Lectures
-               </div>
-            </div>
+      <section className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
+        <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+          <div className="flex items-center gap-2">
+            <Clock className="h-5 w-5 text-indigo-600" />
+            <h2 className="font-bold text-slate-900">Lecture Grid</h2>
+          </div>
+          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+            {days[0]} - {days[days.length - 1]}
+          </p>
+        </div>
 
-            <div className="space-y-4">
-              {(!groupedTimetable[day] || groupedTimetable[day].length === 0) ? (
-                <div className="py-10 text-center border-2 border-dashed border-slate-50 rounded-[1.5rem]">
-                   <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">No classes scheduled</p>
+        <div className="overflow-x-auto">
+          <div className="min-w-[800px] p-6">
+            <div 
+              className="grid gap-2"
+              style={{ gridTemplateColumns: `100px repeat(${timeSlots.length || 1}, minmax(120px, 1fr))` }}
+            >
+              {/* Header: Times */}
+              <div className="h-10 invisible" />
+              {timeSlots.map(time => (
+                <div key={time} className="h-10 flex items-center justify-center font-black text-[10px] text-slate-400 uppercase tracking-widest bg-slate-50 rounded-xl border border-slate-100">
+                  {formatTime(time)}
                 </div>
-              ) : (
-                groupedTimetable[day].map((slot: any) => (
-                  <div key={slot.id} className="p-5 bg-slate-50/50 border border-slate-100 rounded-2xl group-hover:border-indigo-100 transition-all">
-                    <div className="flex items-center gap-3 mb-3">
-                       <div className="h-8 w-8 bg-white rounded-xl flex items-center justify-center text-indigo-600 shadow-sm border border-slate-100">
-                          <BookOpen className="h-4 w-4" />
-                       </div>
-                       <div>
-                          <p className="text-sm font-black text-slate-900">{slot.assignment?.subject?.name}</p>
-                          {slot.assignment?.teacher?.full_name && (
-                            <div className="flex items-center gap-1 text-[10px] text-slate-400 font-bold uppercase">
-                               <User className="h-3 w-3" />
-                               {slot.assignment?.teacher?.full_name}
-                            </div>
-                          )}
-                       </div>
-                    </div>
-                    <div className="flex items-center gap-2 pt-3 border-t border-slate-100/50">
-                       <Clock className="h-3 w-3 text-indigo-400" />
-                       <span className="text-[10px] font-black text-slate-500 uppercase tabular-nums">
-                          {slot.start_time.slice(0, 5)} — {slot.end_time.slice(0, 5)}
-                       </span>
-                    </div>
+              ))}
+
+              {/* Rows: Days */}
+              {days.map(day => (
+                <React.Fragment key={day}>
+                  <div className="h-24 flex items-center pr-4 font-black text-xs text-slate-900 border-r border-slate-100">
+                    {day}
                   </div>
-                ))
-              )}
+                  {timeSlots.map(time => {
+                    const slot = timetable.find(s => s.day_of_week === day && s.start_time === time);
+                    return (
+                      <div key={time} className="h-24 p-1 relative group">
+                        {slot ? (
+                          <div className="h-full w-full bg-indigo-50 rounded-2xl border border-indigo-100 p-3 flex flex-col justify-center animate-in zoom-in-95 duration-300 shadow-sm group-hover:shadow-md transition-all">
+                            <p className="text-[10px] font-black text-slate-900 leading-tight mb-1">
+                              {slot.assignment?.subject?.name}
+                            </p>
+                            <div className="flex items-center gap-1.5 mt-auto">
+                              <div className="h-5 w-5 bg-white rounded-lg flex items-center justify-center text-indigo-600 border border-indigo-100 shadow-sm">
+                                <User className="h-3 w-3" />
+                              </div>
+                              <p className="text-[9px] font-bold text-slate-500 uppercase truncate">
+                                {slot.assignment?.teacher?.full_name || 'TBD'}
+                              </p>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="h-full w-full bg-slate-50/30 rounded-2xl border border-dashed border-slate-100" />
+                        )}
+                      </div>
+                    );
+                  })}
+                </React.Fragment>
+              ))}
             </div>
           </div>
-        ))}
+        </div>
+      </section>
+
+      {/* Mobile Hint */}
+      <div className="md:hidden p-4 bg-amber-50 rounded-2xl border border-amber-100 text-center">
+         <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Scroll horizontally to view full schedule</p>
       </div>
     </div>
   );

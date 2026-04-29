@@ -112,8 +112,13 @@ export class SchoolService {
    * @returns {Promise<Tables<'students'>[]>} Array of students.
    */
   static async getStudents(classId?: string, parentId?: string, includeInactive: boolean = false) {
-    let query = supabase.from('students').select('*, parents(*, profiles(username)), classes(*, academic_years(*)), fees(status)');
-    if (classId) query = query.eq('class_id', classId);
+    let query = supabase.from('students').select('*, parents(*, profiles(username)), classes(*, academic_years(*)), fees(status), student_class_history(class_id)');
+    
+    if (classId) {
+      // Logic: Match current class OR historical class
+      query = query.or(`class_id.eq.${classId},student_class_history.class_id.eq.${classId}`);
+    }
+    
     if (parentId) query = query.eq('parent_id', parentId);
     
     // Only show active students by default, unless explicitly requested
@@ -122,20 +127,24 @@ export class SchoolService {
     }
     
     const { data, error } = await query.order('created_at', { ascending: false });
+    
     if (error) {
-      console.warn('Student list fetch failed, falling back to basic data:', error.message);
-      let fallbackQuery = supabase.from('students').select('*');
-      if (classId) fallbackQuery = fallbackQuery.eq('class_id', classId);
-      if (parentId) fallbackQuery = fallbackQuery.eq('parent_id', parentId);
-      if (!includeInactive) {
-        fallbackQuery = fallbackQuery.eq('status', 'Active');
-      }
-      
-      const { data: fallback, error: fbError } = await fallbackQuery;
-      if (fbError) throw fbError;
-      return fallback;
+       // Fallback logic remains basic
+       console.warn('Student list fetch failed, falling back:', error.message);
+       let fb = supabase.from('students').select('*');
+       if (classId) fb = fb.eq('class_id', classId);
+       if (parentId) fb = fb.eq('parent_id', parentId);
+       const { data: fbd } = await fb;
+       return fbd;
     }
-    return data;
+
+    // Deduplicate if a student matches both current and history (unlikely with .or but good for safety)
+    const seen = new Set();
+    return (data || []).filter((s: any) => {
+      if (seen.has(s.id)) return false;
+      seen.add(s.id);
+      return true;
+    });
   }
 
   /**
@@ -360,14 +369,24 @@ export class SchoolService {
 
     const { data, error } = await supabase
       .from('classes')
-      .select('*, academic_years!inner(*)')
+      .select('*, academic_years!inner(*), students!inner(id, status)')
       .eq('class_teacher_id', teacherId)
-      .eq('academic_years.is_current', true);
+      .eq('academic_years.is_current', true)
+      .eq('students.status', 'Active');
     
-    if (error) throw error;
+    if (error) {
+       // Fallback to basic list if no students match (might be a newly created class)
+       const { data: fallback } = await supabase.from('classes').select('*, academic_years!inner(*)').eq('class_teacher_id', teacherId).eq('academic_years.is_current', true);
+       return (fallback || []).map(cls => ({ id: `MOD-${cls.id}`, class_id: cls.id, isModeratorAssignment: true, class: cls, subject: { name: 'General Attendance' } }));
+    }
     
-    // Return all moderated classes, linking subject context where available
-    return (data || []).map(cls => {
+    // Deduplicate and Return all moderated classes
+    const seen = new Set();
+    return (data || []).filter((cls: any) => {
+      if (seen.has(cls.id)) return false;
+      seen.add(cls.id);
+      return true;
+    }).map(cls => {
       const relatedAssignment = (assignments || []).find(a => a.class_id === cls.id);
       return {
         id: `MOD-${cls.id}`,
@@ -425,21 +444,28 @@ export class SchoolService {
       .from('teacher_assignments')
       .select(`
         *,
-        class:classes(*, academic_years(*)),
+        class:classes!inner(*, academic_years(*), students(id, status)),
         subject:subjects(*)
       `)
-      .eq('teacher_id', teacherId);
+      .eq('teacher_id', teacherId)
+      .eq('class.students.status', 'Active');
     
     if (error) {
-      console.warn('Teacher assignments fetch failed, falling back:', error.message);
-      const { data: fallback, error: fbError } = await supabase
+       // If the join filter is too strict or fails, fallback to basic list
+       const { data: fallback } = await supabase
         .from('teacher_assignments')
-        .select('*, class:classes(*), subject:subjects(*)')
+        .select('*, class:classes(*, academic_years(*)), subject:subjects(*)')
         .eq('teacher_id', teacherId);
-      if (fbError) throw fbError;
-      return fallback;
+       return fallback || [];
     }
-    return data;
+
+    // Deduplicate assignments (since one student matching "Active" is enough to include the class)
+    const seen = new Set();
+    return (data || []).filter((asgn: any) => {
+      if (seen.has(asgn.id)) return false;
+      seen.add(asgn.id);
+      return true;
+    });
   }
 
   static async getTeacherAssignmentsByClass(classId: string) {
@@ -908,7 +934,20 @@ export class SchoolService {
       .upsert(student)
       .select()
       .single();
+    
     if (error) throw error;
+
+    // Record initial history if new or if class is provided
+    if (data && data.class_id) {
+       const { data: classData } = await supabase.from('classes').select('academic_year_id').eq('id', data.class_id).single();
+       
+       await supabase.from('student_class_history').upsert({
+         student_id: data.id,
+         class_id: data.class_id,
+         academic_year_id: classData?.academic_year_id
+       }, { onConflict: 'student_id,class_id,academic_year_id' });
+    }
+
     return data;
   }
 
@@ -946,7 +985,12 @@ export class SchoolService {
   static async getResults(studentId?: string, subjectId?: string) {
     let query = supabase
       .from('results')
-      .select('*, subject:subjects(*), subjects(*), teacher:teachers(*), teachers(*), students(*), assessment:assessments(*, subject:subjects(*), subjects(*), teacher:teachers(*), teachers(*))');
+      .select(`
+        *,
+        subjects(*),
+        academic_years(*),
+        assessment:assessments(*)
+      `);
     
     if (studentId) query = query.eq('student_id', studentId);
     if (subjectId) query = query.eq('subject_id', subjectId);
@@ -1218,10 +1262,10 @@ export class SchoolService {
 
     if (!profile) throw new Error('User profile not found');
 
-    const { error } = await (supabase as any)
-      .from('profiles')
-      .update({ password: newPassword })
-      .eq('id', profile.id);
+    const { error } = await supabase.rpc('admin_reset_password', {
+      target_id: profile.id,
+      new_password: newPassword
+    });
 
     if (error) throw error;
   }
@@ -1229,7 +1273,7 @@ export class SchoolService {
   static async updateProfileRegistration(profileId: string, newRegistrationNo: string) {
     const { error } = await (supabase as any)
       .from('profiles')
-      .update({ registration_no: newRegistrationNo })
+      .update({ username: newRegistrationNo })
       .eq('id', profileId);
 
     if (error) throw error;
@@ -1247,10 +1291,10 @@ export class SchoolService {
   }
 
   static async resetUserPasswordById(profileId: string, newPassword: string) {
-    const { error } = await (supabase as any)
-      .from('profiles')
-      .update({ password: newPassword })
-      .eq('id', profileId);
+    const { error } = await supabase.rpc('admin_reset_password', {
+      target_id: profileId,
+      new_password: newPassword
+    });
 
     if (error) throw error;
   }
@@ -1552,7 +1596,15 @@ export class SchoolService {
    * Bulk promotes students to a new class and records the transition in history.
    */
   static async promoteStudents(studentIds: string[], targetClassId: string, academicYearId: string) {
-    // 1. Update students table
+    // 1. Get current class/session info for these students BEFORE promoting
+    const { data: currentInfo } = await supabase
+      .from('students')
+      .select('class_id, classes(academic_year_id)')
+      .in('id', studentIds);
+
+    const sourceSessionIds = [...new Set(currentInfo?.map((s: any) => s.classes?.academic_year_id).filter(Boolean))];
+
+    // 2. Update students table
     const { error: updateError } = await supabase
       .from('students')
       .update({ class_id: targetClassId })
@@ -1560,7 +1612,7 @@ export class SchoolService {
 
     if (updateError) throw updateError;
 
-    // 2. Insert into history
+    // 3. Insert into history
     const historyRecords = studentIds.map(id => ({
       student_id: id,
       class_id: targetClassId,
@@ -1573,7 +1625,39 @@ export class SchoolService {
 
     if (historyError) throw historyError;
 
+    // 4. Trigger auto-archive check for source sessions
+    for (const sessionId of sourceSessionIds) {
+      this.archiveSessionIfEmpty(sessionId as string).catch(err => 
+        console.warn(`Auto-archive check failed for ${sessionId}:`, err)
+      );
+    }
+
     return { success: true };
+  }
+
+  /**
+   * Automatically archives a session if it no longer has any active students.
+   */
+  static async archiveSessionIfEmpty(sessionId: string) {
+    if (!sessionId) return;
+
+    // Check for any active students in classes belonging to this session
+    const { data, error } = await supabase
+      .from('students')
+      .select('id, classes!inner(academic_year_id)')
+      .eq('status', 'Active')
+      .eq('classes.academic_year_id', sessionId);
+
+    if (error) throw error;
+
+    // If no active students remain, archive the session
+    if (!data || data.length === 0) {
+      console.log(`Archiving session ${sessionId} as it has no remaining active students.`);
+      await supabase
+        .from('academic_years')
+        .update({ is_current: false })
+        .eq('id', sessionId);
+    }
   }
 
   /**
@@ -1586,18 +1670,7 @@ export class SchoolService {
       .order('year_label', { ascending: false });
     
     if (error) throw error;
-    const years = data || [];
-
-    // Safety check: ensure only one is current
-    const currentSessions = years.filter(y => y.is_current);
-    if (currentSessions.length > 1) {
-       console.warn('Multiple active sessions detected. Enforcing single-active-session policy.');
-       // Keep only the first one (most recent due to order)
-       await this.setCurrentYear(currentSessions[0].id);
-       return years.map(y => y.id === currentSessions[0].id ? { ...y, is_current: true } : { ...y, is_current: false });
-    }
-
-    return years;
+    return data || [];
   }
   /**
    * Ensures at least one session is marked as current.
@@ -1633,11 +1706,6 @@ export class SchoolService {
    */
   static async upsertAcademicYear(year: any) {
     try {
-      // If setting as current, reset all others first
-      if (year.is_current) {
-        await supabase.from('academic_years').update({ is_current: false }).neq('id', '00000000-0000-0000-0000-000000000000');
-      }
-
       // Direct Insert
       const { data, error } = await supabase
         .from('academic_years')
@@ -1652,12 +1720,6 @@ export class SchoolService {
           .select();
         
         if (upsertError) throw upsertError;
-
-        // If upserted as current, double check reset
-        if (year.is_current && upsertData && upsertData[0]) {
-           await supabase.from('academic_years').update({ is_current: false }).neq('id', upsertData[0].id);
-           await supabase.from('academic_years').update({ is_current: true }).eq('id', upsertData[0].id);
-        }
         return upsertData;
       }
       return data;
@@ -1668,16 +1730,12 @@ export class SchoolService {
   }
 
   /**
-   * Sets a specific academic year as the current one and deselects others.
+   * Sets a specific academic year as the current one.
    */
-  static async setCurrentYear(yearId: string) {
-    // Reset all
-    await supabase.from('academic_years').update({ is_current: false }).neq('id', '00000000-0000-0000-0000-000000000000');
-    
-    // Set target
+  static async setCurrentYear(yearId: string, isCurrent: boolean = true) {
     const { error } = await supabase
       .from('academic_years')
-      .update({ is_current: true })
+      .update({ is_current: isCurrent })
       .eq('id', yearId);
     
     if (error) throw error;

@@ -11,14 +11,16 @@ export const ParentProfile: React.FC<ParentProfileProps> = ({ parent, childrenDa
     <div className="space-y-8 animate-in fade-in duration-700">
       <div className="relative">
          <div className="h-48 w-full bg-gradient-to-r from-slate-900 to-slate-800 rounded-[2.5rem] shadow-lg" />
-         <div className="absolute -bottom-12 left-12 flex items-end gap-6">
+         <div className="absolute bottom-6 left-12 flex items-end gap-6">
             <div className="h-32 w-32 bg-white rounded-[2rem] p-2 shadow-2xl border border-slate-100">
                <div className="h-full w-full bg-slate-50 rounded-[1.5rem] flex items-center justify-center">
                   <User className="h-16 w-16 text-slate-200" />
                </div>
             </div>
             <div className="pb-4">
-               <h1 className="text-3xl font-black text-slate-900">{parent.full_name}</h1>
+               <h1 className="text-4xl font-black text-white drop-shadow-lg" style={{ textShadow: '2px 2px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000' }}>
+                  {parent.full_name}
+               </h1>
                <div className="flex items-center gap-2 text-emerald-600 font-bold uppercase text-[10px] tracking-widest mt-1">
                   <ShieldCheck className="h-3 w-3" />
                   Primary Guardian Account

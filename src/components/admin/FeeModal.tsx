@@ -29,7 +29,13 @@ export const FeeModal: React.FC<FeeModalProps> = ({ isOpen, onClose, student, on
     setLoading(true);
 
     try {
-      const { data: years } = await supabase.from('academic_years').select('id').eq('is_current', true).single();
+      const { data: years } = await supabase
+        .from('academic_years')
+        .select('id')
+        .eq('is_current', true)
+        .order('year_label', { ascending: false })
+        .limit(1)
+        .single();
       
       const { error } = await supabase
         .from('fees')

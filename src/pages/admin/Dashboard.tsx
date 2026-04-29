@@ -128,38 +128,44 @@ const AdminDashboard: React.FC = () => {
               </div>
             </div>
             
-            <div className="h-72 sm:h-85 w-full relative z-10">
-              <ResponsiveContainer width="100%" height="100%" minHeight={300}>
-                <AreaChart data={stats?.revenueTrend || []}>
-                  <defs>
-                    <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.2}/>
-                      <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis 
-                    dataKey="name" 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{fontSize: 10, fontWeight: 900, fill: '#94a3b8'}} 
-                    dy={15}
-                  />
-                  <YAxis 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{fontSize: 10, fontWeight: 900, fill: '#94a3b8'}} 
-                    dx={-10}
-                    tickFormatter={(v) => `\u20A8${v/1000}k`}
-                  />
-                  <Tooltip 
-                    contentStyle={{ borderRadius: '24px', border: 'none', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.15)', padding: '16px 20px' }} 
-                    itemStyle={{ fontWeight: 900, color: '#10b981' }}
-                    cursor={{ stroke: '#10b981', strokeWidth: 2, strokeDasharray: '6 6' }}
-                  />
-                  <Area type="monotone" dataKey="rev" stroke="#10b981" strokeWidth={5} fillOpacity={1} fill="url(#colorRev)" />
-                </AreaChart>
-              </ResponsiveContainer>
+            <div className="h-[320px] w-full relative z-10">
+              {stats?.revenueTrend?.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%" minHeight={300} minWidth={0}>
+                  <AreaChart data={stats.revenueTrend}>
+                    <defs>
+                      <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.2}/>
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis 
+                      dataKey="name" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{fontSize: 10, fontWeight: 900, fill: '#94a3b8'}} 
+                      dy={15}
+                    />
+                    <YAxis 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{fontSize: 10, fontWeight: 900, fill: '#94a3b8'}} 
+                      dx={-10}
+                      tickFormatter={(v) => `\u20A8${v/1000}k`}
+                    />
+                    <Tooltip 
+                      contentStyle={{ borderRadius: '24px', border: 'none', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.15)', padding: '16px 20px' }} 
+                      itemStyle={{ fontWeight: 900, color: '#10b981' }}
+                      cursor={{ stroke: '#10b981', strokeWidth: 2, strokeDasharray: '6 6' }}
+                    />
+                    <Area type="monotone" dataKey="rev" stroke="#10b981" strokeWidth={5} fillOpacity={1} fill="url(#colorRev)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full w-full flex items-center justify-center bg-slate-50/50 rounded-3xl border border-dashed border-slate-200">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Awaiting Financial Data...</p>
+                </div>
+              )}
             </div>
             <div className="absolute -right-20 -top-20 h-64 w-64 bg-emerald-500/5 blur-[120px] rounded-full" />
           </div>
@@ -172,31 +178,37 @@ const AdminDashboard: React.FC = () => {
                 <p className="text-[10px] text-indigo-600 font-black uppercase tracking-widest">Student spread across academy grades</p>
               </div>
             </div>
-            <div className="h-72 sm:h-80 w-full">
-              <ResponsiveContainer width="100%" height="100%" minHeight={320}>
-                <BarChart data={stats?.gradeDistribution || []}>
-                  <CartesianGrid strokeDasharray="6 6" vertical={false} stroke="#f1f5f9" />
-                  <XAxis 
-                    dataKey="name" 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{fontSize: 9, fontWeight: 900, fill: '#94a3b8'}}
-                    dy={15}
-                  />
-                  <YAxis 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{fontSize: 10, fontWeight: 900, fill: '#94a3b8'}} 
-                    dx={-10}
-                  />
-                  <Tooltip cursor={{fill: '#f8fafc', radius: 24}} contentStyle={{ borderRadius: '24px', border: 'none', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.15)' }} />
-                  <Bar dataKey="value" radius={[16, 16, 4, 4]} barSize={48}>
-                    {(stats?.gradeDistribution || []).map((_, index: number) => (
-                        <Cell key={`cell-${index}`} fill={index % 2 === 0 ? '#6366f1' : '#818cf8'} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+            <div className="h-[340px] w-full">
+              {stats?.gradeDistribution?.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%" minHeight={320} minWidth={0}>
+                  <BarChart data={stats.gradeDistribution}>
+                    <CartesianGrid strokeDasharray="6 6" vertical={false} stroke="#f1f5f9" />
+                    <XAxis 
+                      dataKey="name" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{fontSize: 9, fontWeight: 900, fill: '#94a3b8'}}
+                      dy={15}
+                    />
+                    <YAxis 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{fontSize: 10, fontWeight: 900, fill: '#94a3b8'}} 
+                      dx={-10}
+                    />
+                    <Tooltip cursor={{fill: '#f8fafc', radius: 24}} contentStyle={{ borderRadius: '24px', border: 'none', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.15)' }} />
+                    <Bar dataKey="value" radius={[16, 16, 4, 4]} barSize={48}>
+                      {stats.gradeDistribution.map((_: any, index: number) => (
+                          <Cell key={`cell-${index}`} fill={index % 2 === 0 ? '#6366f1' : '#818cf8'} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full w-full flex items-center justify-center bg-slate-50/50 rounded-3xl border border-dashed border-slate-200">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Awaiting Academic Metrics...</p>
+                </div>
+              )}
             </div>
           </div>
         </div>

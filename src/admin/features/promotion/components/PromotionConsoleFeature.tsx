@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { GraduationCap, ArrowRight, CheckCircle2, XCircle, AlertCircle, RefreshCw, Plus } from 'lucide-react';
+import { GraduationCap, ArrowRight, RefreshCw } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { SchoolService } from '../../../../services/schoolService';
 import { toast } from 'sonner';
@@ -14,7 +14,8 @@ export const PromotionConsoleFeature: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [processing, setProcessing] = useState(false);
 
-  const [selectedYearId, setSelectedYearId] = useState('');
+  const [sourceYearId, setSourceYearId] = useState('');
+  const [targetYearId, setTargetYearId] = useState('');
 
   useEffect(() => {
     fetchMetadata();
@@ -30,7 +31,10 @@ export const PromotionConsoleFeature: React.FC = () => {
       setAcademicYears(years);
       
       const current = years.find(y => y.is_current);
-      if (current) setSelectedYearId(current.id);
+      if (current) {
+        setSourceYearId(current.id);
+        setTargetYearId(current.id);
+      }
     } catch (error) {
       toast.error('Failed to load metadata');
     }
@@ -54,40 +58,52 @@ export const PromotionConsoleFeature: React.FC = () => {
     }
   };
 
+  const parseGrade = (g: string): number => {
+    if (!g) return 0;
+    const match = g.match(/\d+/);
+    if (match) return parseInt(match[0]);
+    // Handle early years
+    const lower = g.toLowerCase();
+    if (lower.includes('pg')) return -2;
+    if (lower.includes('nursery')) return -1;
+    if (lower.includes('kg')) return 0;
+    return 0;
+  };
+
   const handlePromote = async () => {
-    if (!targetClass) {
-      toast.error('Please select a target class');
+    const src = classes.find(c => c.id === sourceClass);
+    const target = classes.find(c => c.id === targetClass);
+
+    if (!src || !target) {
+      toast.error('Source or Target class invalid');
       return;
     }
+
+    const srcGrade = parseGrade(src.grade);
+    const targetGrade = parseGrade(target.grade);
+
+    if (targetGrade < srcGrade) {
+      toast.error(`Invalid Direction: Target grade (${target.grade}) cannot be lower than current grade (${src.grade}).`);
+      return;
+    }
+
+    if (targetGrade - srcGrade > 3) {
+      toast.error(`Academic Cap: Max promotion is 3 grades. You are attempting a ${targetGrade - srcGrade} grade leap from ${src.grade} to ${target.grade}.`);
+      return;
+    }
+
     if (selectedIds.length === 0) {
       toast.error('No students selected for promotion');
       return;
     }
 
-    let currentYearId = academicYears.find(y => y.is_current)?.id;
-    
-    // If not in state, re-fetch
-    if (!currentYearId) {
-      const freshYears = await SchoolService.getAcademicYears();
-      const current = freshYears.find(y => y.is_current);
-      if (current) currentYearId = current.id;
-      
-      if (!currentYearId && freshYears.length > 0) {
-        currentYearId = freshYears[0].id;
-      }
-      if (freshYears.length > 0) setAcademicYears(freshYears);
-    }
-
-    if (!currentYearId) {
-      toast.error('No sessions found. Please create an academic year in the Promotions console first.');
-      return;
-    }
-
     try {
       setProcessing(true);
-      await SchoolService.promoteStudents(selectedIds, targetClass, currentYearId);
-      toast.success(`${selectedIds.length} students promoted successfully!`);
+      await SchoolService.promoteStudents(selectedIds, targetClass, target.academic_year_id);
+      toast.success(`${selectedIds.length} students promoted successfully to ${target.grade}-${target.section}!`);
       fetchStudents(sourceClass);
+      setSelectedIds([]);
+      setTargetClass('');
     } catch (error) {
       toast.error('Promotion failed');
     } finally {
@@ -135,8 +151,8 @@ export const PromotionConsoleFeature: React.FC = () => {
               </div>
               
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-relaxed">
-                Retire the current active session and initialize the next academic cycle. 
-                <span className="text-emerald-400 block mt-1">This will automatically archive the current session.</span>
+                Initialize the next academic cycle. 
+                <span className="text-emerald-400 block mt-1">Previous sessions will remain active until all classes are promoted.</span>
               </p>
 
               <button 
@@ -144,7 +160,7 @@ export const PromotionConsoleFeature: React.FC = () => {
                   const label = prompt('Enter next session label (e.g. 2025-26):');
                   if (!label) return;
                   
-                  if (!confirm(`Are you sure you want to promote the school to ${label}? The current session will be archived.`)) return;
+                  if (!confirm(`Are you sure you want to initialize the ${label} session? Old sessions will remain active until promotion is complete.`)) return;
 
                   try {
                     setProcessing(true);
@@ -171,8 +187,8 @@ export const PromotionConsoleFeature: React.FC = () => {
               <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-4">View Specific Session Records</label>
               <div className="flex gap-2">
                 <select
-                  value={selectedYearId}
-                  onChange={(e) => setSelectedYearId(e.target.value)}
+                  value={sourceYearId}
+                  onChange={(e) => setSourceYearId(e.target.value)}
                   className="flex-1 p-5 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-bold appearance-none cursor-pointer text-slate-900"
                 >
                   <option value="">Select Session</option>
@@ -196,8 +212,8 @@ export const PromotionConsoleFeature: React.FC = () => {
                 className="w-full p-5 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:ring-4 focus:ring-emerald-500/5 font-bold text-slate-900 appearance-none cursor-pointer"
               >
                 <option value="">Select Origin Class</option>
-                {classes.filter(c => c.academic_year_id === selectedYearId || !c.academic_year_id).length > 0 ? 
-                  classes.filter(c => c.academic_year_id === selectedYearId || !c.academic_year_id).map(c => (
+                {classes.filter(c => c.academic_year_id === sourceYearId || !c.academic_year_id).length > 0 ? 
+                  classes.filter(c => c.academic_year_id === sourceYearId || !c.academic_year_id).map(c => (
                     <option key={c.id} value={c.id}>
                       Grade {c.grade} - {c.section} {!c.academic_year_id ? '(Needs Repair)' : ''}
                     </option>
@@ -208,8 +224,8 @@ export const PromotionConsoleFeature: React.FC = () => {
               {classes.some(c => !c.academic_year_id) && (
                 <button 
                   onClick={async () => {
-                    if (selectedYearId) {
-                      await SchoolService.linkOrphanClasses(selectedYearId);
+                    if (sourceYearId) {
+                      await SchoolService.linkOrphanClasses(sourceYearId);
                       toast.success('Classes linked to current session');
                       fetchMetadata();
                     } else {
@@ -230,17 +246,45 @@ export const PromotionConsoleFeature: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-4">Step 2: Target Grade</label>
+              <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-4">Step 2: Target Session</label>
+              <select
+                value={targetYearId}
+                onChange={(e) => {
+                  setTargetYearId(e.target.value);
+                  setTargetClass('');
+                }}
+                className="w-full p-5 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:ring-4 focus:ring-emerald-500/5 font-bold text-slate-900 appearance-none cursor-pointer"
+              >
+                {academicYears.map(y => (
+                  <option key={y.id} value={y.id}>{y.year_label} {y.is_current ? '(Current Active)' : '(Archived)'}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-4">Step 3: Target Grade</label>
               <select
                 value={targetClass}
                 onChange={(e) => setTargetClass(e.target.value)}
                 className="w-full p-5 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:ring-4 focus:ring-emerald-500/5 font-bold text-slate-900 appearance-none cursor-pointer"
               >
                 <option value="">Select Promotion Target</option>
-                {classes.map(c => (
-                  <option key={c.id} value={c.id}>Grade {c.grade} - {c.section} ({academicYears.find(y => y.id === c.academic_year_id)?.year_label})</option>
-                ))}
+                {classes
+                  .filter(c => {
+                    if (c.academic_year_id !== targetYearId) return false;
+                    const src = classes.find(cl => cl.id === sourceClass);
+                    if (!src) return true; // Show all if no source selected yet
+                    const srcGrade = parseGrade(src.grade);
+                    const targetGrade = parseGrade(c.grade);
+                    return targetGrade >= srcGrade && (targetGrade - srcGrade) <= 3;
+                  })
+                  .map(c => (
+                    <option key={c.id} value={c.id}>Grade {c.grade} - {c.section}</option>
+                  ))}
               </select>
+              {targetYearId && classes.filter(c => c.academic_year_id === targetYearId).length === 0 && (
+                <p className="text-[9px] text-rose-500 font-bold mt-2 uppercase tracking-tight">No classes defined for this session.</p>
+              )}
             </div>
 
             <div className="pt-4">

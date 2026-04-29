@@ -18,7 +18,8 @@ export const supabaseAdmin = createClient<Database>(
         getItem: () => null,
         setItem: () => {},
         removeItem: () => {},
-      }
+      },
+      storageKey: 'supabase-admin-auth-token'
     }
   }
 );

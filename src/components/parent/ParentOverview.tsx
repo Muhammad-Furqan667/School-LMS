@@ -25,6 +25,8 @@ export const ParentOverview: React.FC<ParentOverviewProps> = ({
   isLocked, fees = [], timetable = [], diary = [], results = [], activeChild, parentData 
 }) => {
   const navigate = useNavigate();
+  const totalDues = Array.isArray(fees) ? fees.reduce((acc, f) => f.status?.toLowerCase() === 'unpaid' ? acc + (f.amount_due || 0) : acc, 0) : 0;
+  const isPaymentOverdue = isLocked || totalDues > 0;
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -57,17 +59,17 @@ export const ParentOverview: React.FC<ParentOverviewProps> = ({
         {/* Quick Stats Column */}
         <div className="space-y-6">
            {/* Fee Quick Status */}
-           <div className={`p-8 rounded-[2.5rem] relative overflow-hidden shadow-sm ${isLocked ? 'bg-red-50 border border-red-100' : 'bg-emerald-50 border border-emerald-100'}`}>
+           <div className={`p-8 rounded-[2.5rem] relative overflow-hidden shadow-sm ${isPaymentOverdue ? 'bg-red-50 border border-red-100' : 'bg-emerald-50 border border-emerald-100'}`}>
               <div className="flex justify-between items-start mb-6">
-                 <div className={`h-12 w-12 rounded-2xl flex items-center justify-center ${isLocked ? 'bg-red-500 text-white' : 'bg-emerald-500 text-white'}`}>
+                 <div className={`h-12 w-12 rounded-2xl flex items-center justify-center ${isPaymentOverdue ? 'bg-red-500 text-white' : 'bg-emerald-500 text-white'}`}>
                     <CreditCard className="h-6 w-6" />
                  </div>
-                 <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${isLocked ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'}`}>
-                    {isLocked ? 'Payment Overdue' : 'Account Clear'}
+                 <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${isPaymentOverdue ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                    {isPaymentOverdue ? 'Payment Overdue' : 'Account Clear'}
                  </div>
               </div>
               <p className="text-3xl font-black text-slate-900 mb-1">
-                 Rs. {Array.isArray(fees) ? fees.reduce((acc, f) => f.status === 'unpaid' ? acc + (f.amount_due || 0) : acc, 0).toLocaleString() : '0'}
+                 Rs. {totalDues.toLocaleString()}
               </p>
               <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">Total Dues</p>
               <button 

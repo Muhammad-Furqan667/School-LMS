@@ -27,7 +27,13 @@ export const useStudentFees = () => {
     onSuccess: () => void
   ) => {
     try {
-      const { data: years } = await supabase.from('academic_years').select('id').eq('is_current', true).single();
+      const { data: years } = await supabase
+        .from('academic_years')
+        .select('id')
+        .eq('is_current', true)
+        .order('year_label', { ascending: false })
+        .limit(1)
+        .single();
       await SchoolService.upsertFee({
         id: feeForm.id,
         student_id: selectedStudent.id,

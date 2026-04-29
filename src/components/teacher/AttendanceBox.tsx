@@ -32,6 +32,9 @@ export const AttendanceBox: React.FC<AttendanceBoxProps> = ({
     return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
   });
 
+  const [timeLeft, setTimeLeft] = React.useState<number | null>(null);
+  const LOCK_WINDOW_MINUTES = 5;
+
   const isLockedByTime = React.useMemo(() => {
     if (!isAlreadyMarked) return false;
     
@@ -39,7 +42,6 @@ export const AttendanceBox: React.FC<AttendanceBoxProps> = ({
     let createdTime: number;
 
     if (firstRecord.marking_time) {
-      // Robust date parsing for "YYYY-MM-DDTHH:mm"
       const dateStr = `${firstRecord.date}T${firstRecord.marking_time.slice(0, 5)}`;
       createdTime = new Date(dateStr).getTime();
     } else {
@@ -49,11 +51,43 @@ export const AttendanceBox: React.FC<AttendanceBoxProps> = ({
     const now = new Date().getTime();
     const diffMinutes = (now - createdTime) / (1000 * 60);
     
-    return diffMinutes > 5;
+    return diffMinutes > LOCK_WINDOW_MINUTES;
   }, [existingAttendance, isAlreadyMarked]);
 
-  // Allow editing if user is Admin OR Section Moderator (within 5 min lock today OR historical fixing)
+  // Timer Effect
+  React.useEffect(() => {
+    if (!isAlreadyMarked || isLockedByTime || !isToday) {
+      setTimeLeft(null);
+      return;
+    }
+
+    const firstRecord = existingAttendance[0];
+    const startTime = new Date(firstRecord.marking_time ? `${firstRecord.date}T${firstRecord.marking_time.slice(0, 5)}` : firstRecord.created_at).getTime();
+    const endTime = startTime + (LOCK_WINDOW_MINUTES * 60 * 1000);
+
+    const timer = setInterval(() => {
+      const now = new Date().getTime();
+      const remaining = Math.max(0, Math.floor((endTime - now) / 1000));
+      
+      if (remaining === 0) {
+        clearInterval(timer);
+        window.location.reload(); // Refresh to enforce lock state
+      }
+      
+      setTimeLeft(remaining);
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [existingAttendance, isAlreadyMarked, isLockedByTime, isToday]);
+
+  // Allow editing if user is Admin OR Section Moderator (within window today OR historical fixing)
   const canEdit = isAdmin || (isClassTeacher && (!isToday || !isLockedByTime));
+
+  const formatTimeLeft = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${String(secs).padStart(2, '0')}`;
+  };
 
   const currentHour = new Date().getHours();
   const displayHour = String(currentHour).padStart(2, '0');
@@ -126,9 +160,18 @@ export const AttendanceBox: React.FC<AttendanceBoxProps> = ({
             }
           </p>
         </div>
-        
         <div className="flex flex-wrap items-center gap-3">
-           <div className="flex items-center gap-2">
+            {timeLeft !== null && (
+              <div className="flex items-center gap-2 px-4 py-2 bg-indigo-50 border border-indigo-100 rounded-xl animate-pulse">
+                <Clock className="h-4 w-4 text-indigo-600" />
+                <div className="flex flex-col">
+                  <span className="text-[8px] font-black text-indigo-400 uppercase tracking-widest leading-none">Locking In</span>
+                  <span className="text-xs font-black text-indigo-700 font-mono leading-none">{formatTimeLeft(timeLeft)}</span>
+                </div>
+              </div>
+            )}
+            
+            <div className="flex items-center gap-2">
              <input 
                type="date"
                value={selectedDate}

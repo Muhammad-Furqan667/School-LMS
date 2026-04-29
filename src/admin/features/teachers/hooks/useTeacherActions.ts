@@ -54,7 +54,7 @@ export const useTeacherActions = (fetchAll: () => void) => {
           await SchoolService.resetUserPasswordById(selectedTeacher.profile_id, editForm.password);
         }
         const profileData = Array.isArray(selectedTeacher.profiles) ? selectedTeacher.profiles[0] : selectedTeacher.profiles;
-        if (editForm.username && editForm.username !== (profileData?.registration_no || '')) {
+        if (editForm.username && editForm.username !== (profileData?.username || '')) {
           await SchoolService.updateProfileRegistration(selectedTeacher.profile_id, editForm.username);
         }
       } else if (editForm.username && editForm.password) {

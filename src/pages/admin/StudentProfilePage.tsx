@@ -5,14 +5,9 @@ import {
   User, 
   CreditCard, 
   GraduationCap, 
-  Calendar, 
   ShieldCheck, 
-  FileText,
   Clock,
-  TrendingUp,
-  MapPin,
-  Phone,
-  Briefcase
+  TrendingUp
 } from 'lucide-react';
 import { SchoolService } from '../../services/schoolService';
 import { toast } from 'sonner';
@@ -83,14 +78,16 @@ const StudentProfilePage: React.FC = () => {
         <div className="h-32 bg-slate-900 w-full relative">
             <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:20px_20px]" />
         </div>
-        <div className="px-12 pb-12 -mt-12 relative z-10 flex flex-col md:flex-row items-end gap-8">
+        <div className="px-12 pb-8 -mt-20 relative z-10 flex flex-col md:flex-row items-end gap-8">
             <div className="h-40 w-40 bg-white rounded-[2.5rem] p-2 shadow-2xl shadow-slate-200 flex items-center justify-center border border-slate-100 overflow-hidden">
                 <div className="h-full w-full bg-slate-50 rounded-[2rem] flex items-center justify-center text-5xl font-black text-slate-200 group-hover:scale-110 transition-transform">
                     {student.name[0]}
                 </div>
             </div>
             <div className="flex-1 pb-2">
-                <h1 className="text-4xl font-black text-slate-900 tracking-tight mb-1">{student.name}</h1>
+                <h1 className="text-5xl font-black text-white drop-shadow-lg" style={{ textShadow: '2px 2px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000' }}>
+                   {student.name}
+                </h1>
                 <div className="flex flex-wrap items-center gap-4 text-slate-400">
                     <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest">
                         <GraduationCap className="h-4 w-4" />

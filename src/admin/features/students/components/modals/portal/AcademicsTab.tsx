@@ -5,13 +5,11 @@ import type { Student, AcademicResults } from '../../../types/student.types';
 interface AcademicsTabProps {
   selectedStudent: Student;
   academicResults: AcademicResults;
-  handleUpdateResult: (result: any, status: 'pass' | 'fail' | 'pending', student: Student) => Promise<void>;
 }
 
 export const AcademicsTab: React.FC<AcademicsTabProps> = ({
   selectedStudent,
   academicResults,
-  handleUpdateResult,
 }) => {
   // Group current results by assessment
   const groupedCurrent = academicResults.current.reduce((acc: any, res) => {
@@ -84,7 +82,7 @@ export const AcademicsTab: React.FC<AcademicsTabProps> = ({
                  {items.map((res: any, idx: number) => (
                    <div key={idx} className="py-4 flex items-center justify-between group-hover:bg-slate-50/30 transition-colors px-2 rounded-xl">
                       <div>
-                         <p className="text-sm font-black text-slate-800">{res.subjects?.name}</p>
+                         <p className="text-sm font-black text-slate-800">{res.subjects?.name || res.assessment?.subjects?.name || 'General'}</p>
                          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Graded by Faculty</p>
                       </div>
                       <div className="flex flex-col items-end gap-1">
